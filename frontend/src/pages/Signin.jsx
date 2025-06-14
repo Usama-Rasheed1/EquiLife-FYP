@@ -102,11 +102,11 @@ const Signin = () => {
             </p>
           </div>
         </div>
-        <div className="w-1/2">
+        <div className="w-1/2 flex items-center justify-center">
           <img
-            src="/test.avif"
+            src="/signin.webp"
             alt="Login Visual"
-            className="h-full w-full object-cover"
+            className="h-[60%] w-full object-contain"
           />
         </div>
       </div>
