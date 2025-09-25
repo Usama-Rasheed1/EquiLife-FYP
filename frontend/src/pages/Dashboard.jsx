@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect } from "react";
-
+import Card from "../components/Card";
 const DashboardLayout = () => {
   const [dropdownOpen, setDropdownOpen] = useState(false);
   const dropdownRef = useRef();
@@ -26,13 +26,13 @@ const DashboardLayout = () => {
 
         <nav className="flex flex-col px-6 pt-4 text-gray-600 space-y-2 text-sm">
           {/* Dashboard */}
-          <button className="flex items-center py-5 space-x-3 hover:text-blue-500">
+          <button className="flex items-center py-5 space-x-3 hover:text-blue-500 hover:bg-gray-100">
             <img src="/dashIcon.png" alt="Dashboard Icon" className="h-5 w-5" />
             <span>Dashboard</span>
           </button>
 
           {/* Assessment */}
-          <button className="flex items-center py-5 space-x-3 hover:text-blue-500">
+          <button className="flex items-center py-5 space-x-3 hover:text-blue-500 hover:bg-gray-100">
             <img
               src="/mentalIcon.png"
               alt="Assessment Icon"
@@ -42,7 +42,7 @@ const DashboardLayout = () => {
           </button>
 
           {/* Fitness */}
-          <button className="flex items-center py-5 space-x-3 hover:text-blue-500">
+          <button className="flex items-center py-5 space-x-3 hover:text-blue-500 hover:bg-gray-100">
             <img
               src="/physicalIcon.png"
               alt="Fitness Icon"
@@ -52,7 +52,7 @@ const DashboardLayout = () => {
           </button>
 
           {/* Nutrition */}
-          <button className="flex items-center py-5 space-x-3 hover:text-blue-500">
+          <button className="flex items-center py-5 space-x-3 hover:text-blue-500 hover:bg-gray-100">
             <img
               src="/nutritionIcon.png"
               alt="Nutrition Icon"
@@ -135,7 +135,9 @@ const DashboardLayout = () => {
 
         {/* Main content */}
         <main className="flex-1 bg-gray-50 p-4">
-          <p className="text-gray-600">Main content goes here...</p>
+          <p className="text-gray-600">
+            <Card/>
+          </p>
         </main>
       </div>
     </div>

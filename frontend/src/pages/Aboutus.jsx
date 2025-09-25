@@ -30,7 +30,11 @@ const Aboutus = () => {
             <a href="contactus" className="text-gray-700 hover:text-blue-500">
               Contact Us
             </a>
-            <button className="bg-blue-600 text-white cursor-pointer px-4 py-2 rounded hover:bg-blue-700">
+            <button 
+            onClick={() => {
+                window.location.href = "/signin";
+              }}
+              className="bg-blue-600 text-white cursor-pointer px-4 py-2 rounded hover:bg-blue-700">
               Get Started
             </button>
           </div>
