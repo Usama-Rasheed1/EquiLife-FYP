@@ -1,6 +1,6 @@
 import React from "react";
 
-const LandingPage = () => {
+const Aboutus = () => {
   return (
     <div className="font-sans">
       {/*Navbar*/}
@@ -24,18 +24,17 @@ const LandingPage = () => {
             <a href="/" className="text-gray-700 hover:text-blue-500">
               Home
             </a>
-            <a href="/aboutus" className="text-gray-700 hover:text-blue-500">
+            <a href="" className="text-blue-400 font-semibold">
               About Us
             </a>
-            <a href="/contactus" className="text-gray-700 hover:text-blue-500">
+            <a href="contactus" className="text-gray-700 hover:text-blue-500">
               Contact Us
             </a>
-            <button
-              onClick={() => {
+            <button 
+            onClick={() => {
                 window.location.href = "/signin";
               }}
-              className="bg-blue-600 text-white cursor-pointer px-4 py-2 rounded hover:bg-blue-700"
-            >
+              className="bg-blue-600 text-white cursor-pointer px-4 py-2 rounded hover:bg-blue-700">
               Get Started
             </button>
           </div>
@@ -45,34 +44,14 @@ const LandingPage = () => {
       {/*Hero Section*/}
       <div className="relative w-full h-[60vh] bg-cover bg-center">
         <img
-          src="/hero.png"
+          src="/aboutus.png"
           alt="Hero"
-          className="w-full h-full object-cover"
+          className="w-full h-full brightness-80 object-cover"
           loading="lazy"
         />
-        <div
-          className="absolute inset-0 pointer-events-none"
-          style={{
-            background:
-              "linear-gradient(to right, rgba(96, 165, 250, 0.9) 0%, rgba(96, 165, 250, 0.1) 50%, transparent 100%)",
-          }}
-        />
-        <div className="absolute pl-32 inset-0 flex items-center text-white">
-          <div className="pl-8 max-w-xl text-left">
-            <h2 className="text-3xl font-bold mb-3 max-w-[22rem]">
-              <span className="text-blue-100">YOUR</span> MENTAL & PHYSICAL{" "}
-              <span className="text-blue-100">
-                WELLNESS OUR DUTY, YOUR RIGHT
-              </span>
-            </h2>
-            <p className="text-lg mb-4">
-              EquiLife empowers individuals to take control of their mental and
-              physical well-being through personalized tools and AI-driven
-              insights.
-            </p>
-            <button className="bg-white text-blue-700 cursor-pointer font-semibold px-6 py-2 mb-14 rounded hover:bg-gray-200">
-              Get Started
-            </button>
+        <div className="absolute inset-0 flex items-center justify-center text-white">
+          <div className="max-w-xl text-center">
+            <h2 className="text-5xl font-bold mb-3 max-w-[22rem]">About Us</h2>
           </div>
         </div>
       </div>
@@ -203,24 +182,18 @@ const LandingPage = () => {
         </div>
       </div>
 
-      {/* Core Features */}
+      {/* Vision & Mission */}
       <section className="mx-auto px-32 py-12">
-        <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-6">
-          <div className="flex-1">
-            <h2 className="text-3xl font-bold mb-2">
-              Core <span className="text-blue-500">Features</span>
-            </h2>
-            <p className="text-gray-600 max-w-3xl text-left">
-              EquiLife integrates AI-driven insights, behavioral science, and
-              community support into one seamless platform helping you thrive
-              mentally, physically, and nutritionally.
-            </p>
-          </div>
-          <div className="shrink-0">
-            <button className="bg-blue-500 text-white cursor-pointer px-5 py-2 rounded hover:bg-blue-600 transition">
-              Get Started
-            </button>
-          </div>
+        <div className="text-center max-w-3xl mx-auto">
+          <h2 className="text-3xl font-bold mb-2">
+            <span className="text-blue-500">Who We Are & </span>What We Stand
+            For
+          </h2>
+          <p className="text-gray-600">
+            Through our mission, values, and vision, we define our purpose,
+            uphold our standards, and chart a strategic path toward advancing
+            patient-centered care and medical leadership.
+          </p>
         </div>
 
         <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-x-8 gap-y-4 mt-8">
@@ -232,13 +205,13 @@ const LandingPage = () => {
               loading="lazy"
             />
             <div>
-              <h3 className="font-semibold text-lg mb-1">Mental Assessment</h3>
+              <h3 className="font-semibold text-lg mb-1">Our Mission</h3>
               <p className="text-gray-600 text-sm">
-                It offers clinically backed self-assessment tools like PHQ-9,
-                GAD-7, and GHQ-12 standardized tests to help you evaluate your
-                mental wellness. These assessments are quick and provide a
-                starting point for personalized guidance on your wellness
-                journey.
+                EquiLife exists to empower individuals to achieve balance in
+                both mental and physical health. Through personalized tools,
+                intelligent insights, and supportive resources, we aim to make
+                wellness accessible and meaningful. Our mission is to simplify
+                self-care.
               </p>
             </div>
           </div>
@@ -251,12 +224,12 @@ const LandingPage = () => {
               loading="lazy"
             />
             <div>
-              <h3 className="font-semibold text-lg mb-1">Physical Health</h3>
+              <h3 className="font-semibold text-lg mb-1">Our Vision</h3>
               <p className="text-gray-600 text-sm">
-                Log your workouts, track your calorie burn, and monitor your
-                consistency across different training styles all in one place.
-                EquiLife helps you stay committed and celebrate every movement
-                milestone.
+                We envision a world where wellness is holistic, inclusive, and
+                free of stigma. Mental and physical well-being should be equally
+                prioritized and seamlessly integrated. EquiLife strives to give
+                every person the tools to thrive with confidence and clarity.
               </p>
             </div>
           </div>
@@ -269,185 +242,20 @@ const LandingPage = () => {
               loading="lazy"
             />
             <div>
-              <h3 className="font-semibold text-lg mb-1">Nutrition Log</h3>
+              <h3 className="font-semibold text-lg mb-1">Our Values</h3>
               <p className="text-gray-600 text-sm">
-                Easily record your meals and water intake, view your
-                macronutrient balance, and receive daily nutritional suggestions
-                based on your goals. We’ll help you stay on track with small,
-                sustainable habits.
-              </p>
-            </div>
-          </div>
-
-          <div className="flex items-start bg-white rounded-lg p-3">
-            <img
-              src="/core4.png"
-              alt="Goal & Progress"
-              className="w-8 h-8 mr-3 mt-1"
-              loading="lazy"
-            />
-            <div>
-              <h3 className="font-semibold text-lg mb-1">Goal & Progress</h3>
-              <p className="text-gray-600 text-sm">
-                Set personalized wellness goals and track your progress with
-                clear visualizations. EquiLife keeps you motivated with
-                real-time feedback and milestone badges.
-              </p>
-            </div>
-          </div>
-
-          <div className="flex items-start bg-white rounded-lg p-3">
-            <img
-              src="/core5.png"
-              alt="Gamification & Badges"
-              className="w-8 h-8 mr-3 mt-1"
-              loading="lazy"
-            />
-            <div>
-              <h3 className="font-semibold text-lg mb-1">
-                Gamification & Badges
-              </h3>
-              <p className="text-gray-600 text-sm">
-                Boost your motivation with a gamified experience! Earn badges
-                for consistency, unlock achievements, and challenge friends. In
-                this feature, users can also manually add challenges.
-              </p>
-            </div>
-          </div>
-
-          <div className="flex items-start bg-white rounded-lg p-3">
-            <img
-              src="/core6.png"
-              alt="Community Interaction"
-              className="w-8 h-8 mr-3 mt-1"
-              loading="lazy"
-            />
-            <div>
-              <h3 className="font-semibold text-lg mb-1">
-                Community Interaction
-              </h3>
-              <p className="text-gray-600 text-sm">
-                Join a safe, supportive space where users share insights and
-                encouragement. Participate in discussions and celebrate your
-                wins together. You're not alone — we're in this journey
-                together.
+                At the heart of EquiLife are compassion, simplicity, and
+                personal growth. We believe in science-backed guidance, user
+                privacy, and building an inclusive, supportive community.
+                Wellness should feel empowering — never overwhelming.
               </p>
             </div>
           </div>
         </div>
-      </section>
-
-      {/* Get Started */}
-
-      <div className="bg-blue-100">
-        <div className="columns-2 px-32 py-12">
-          {/* Left Section */}
-          <div className="py-12">
-            <p className="font-bold">Start Your Equilife Journey Today!</p>
-            <h2 className="text-3xl font-bold mb-2 pt-2">
-              <span className="text-blue-500">Let's </span> Get Started
-            </h2>
-            <p className="pb-10 max-w-[26rem]">
-              EquiLife is a dedicated partner for efficiently managing and
-              optimizing health and wellness operations, currently delivering a
-              robust suite of services in 5+ countries across five continents.
-            </p>
-            <button className="bg-blue-600 text-white cursor-pointer px-4 py-2 rounded hover:bg-blue-700">
-              Get Started
-            </button>
-          </div>
-          {/* Right Section */}
-          <div className="relative flex items-center justify-center h-80">
-            {/* Blue circle background */}
-            <img
-              src="/getStarted2.png"
-              alt="getStarted2"
-              className="absolute right-[0] bottom-[-1.25rem] h-60 z-0 left-auto translate-x-15"
-              loading="lazy"
-            />
-            {/* Laptop (foreground) */}
-            <img
-              src="/getStarted.png"
-              alt="getStarted1"
-              className="relative h-80 z-10"
-              loading="lazy"
-            />
-          </div>
-        </div>
-      </div>
-
-      {/* FAQ Section */}
-
-      <section className="px-4 md:px-32 py-12">
-        {/* Heading */}
-        <div className="text-center mb-10 mt-3">
-          <h2 className="text-3xl font-bold mb-2">
-            Frequently Asked <span className="text-blue-500">Questions</span>
-          </h2>
-          <p className="text-black">
-            These are the questions we hear more often.
-          </p>
-        </div>
-
-        {/* FAQ + Side Card */}
-        <div className="flex flex-col lg:flex-row gap-8 items-start justify-center">
-          {/* FAQ Accordion (hard-coded) */}
-          <div className="flex-1 max-w-2xl w-full">
-            {/* 1 */}
-            <div className="border-b">
-              <button className="w-full text-left py-5 px-2 flex items-center justify-between text-black">
-                <span>Is EquiLife free to use?</span>
-                <span className="text-xl">+</span>
-              </button>
-            </div>
-            {/* 2 (open) */}
-            <div className="border-b">
-              <button className="w-full text-left py-5 px-2 flex items-center justify-between font-semibold text-blue-600">
-                <span>How does the mental health assessment work?</span>
-                <span className="text-xl">×</span>
-              </button>
-              <div className="px-2 pb-5 text-gray-600 text-sm">
-                Our AI-powered assessment uses scientifically validated
-                questionnaires to evaluate stress, mood, and emotional
-                well-being. Your results are private and used to suggest
-                personalized coping strategies.
-              </div>
-            </div>
-            {/* 3 */}
-            <div className="border-b">
-              <button className="w-full text-left py-5 px-2 flex items-center justify-between text-black">
-                <span>How accurate is the nutrition calculator?</span>
-                <span className="text-xl">+</span>
-              </button>
-            </div>
-            {/* 4 */}
-            <div className="border-b">
-              <button className="w-full text-left py-5 px-2 flex items-center justify-between text-black">
-                <span>Can I interact with other users?</span>
-                <span className="text-xl">+</span>
-              </button>
-            </div>
-            {/* 5 */}
-            <div className="border-b last:border-b-0">
-              <button className="w-full text-left py-5 px-2 flex items-center justify-between text-black">
-                <span>How does AI give personalized suggestions?</span>
-                <span className="text-xl">+</span>
-              </button>
-            </div>
-          </div>
-
-          {/* Side Card */}
-          <div className="w-full lg:w-80 ml-16 bg-blue-50 rounded-lg p-8 flex flex-col items-center text-center shadow-sm mt-24">
-            <p className="font-semibold text-lg mb-2">
-              Don’t see the answer you need?
-            </p>
-            <p className="text-gray-500 mb-5 text-sm">
-              That’s ok. Just drop a message and we will get back to you ASAP.
-            </p>
-            <button className="bg-blue-500 text-white cursor-pointer px-5 py-2 rounded hover:bg-blue-600 transition">
-              Get Started
-            </button>
-          </div>
+        <div className="flex justify-center">
+          <button className="bg-blue-600 text-white cursor-pointer px-4 py-2 rounded hover:bg-blue-700">
+            Get Started
+          </button>
         </div>
       </section>
 
@@ -558,4 +366,4 @@ const LandingPage = () => {
   );
 };
 
-export default LandingPage;
+export default Aboutus;
