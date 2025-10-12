@@ -6,6 +6,69 @@ export default function ChatWindow({ group, messages = [] }) {
   const [message, setMessage] = useState("");
   const pickerRef = useRef(null);
 
+  // Sample messages data matching the Figma design
+  const sampleMessages = [
+    {
+      id: 1,
+      date: "10 June 2025",
+      type: "date"
+    },
+    {
+      id: 2,
+      sender: "Usama",
+      phone: "+92 300 1234567",
+      message: "I've been struggling with motivation lately. Even small tasks feel overwhelming.",
+      time: "8:26 pm",
+      isOwn: false,
+      avatar: "https://avatar.iran.liara.run/public/25"
+    },
+    {
+      id: 3,
+      sender: "Tayyab",
+      phone: "+92 301 2345678",
+      message: "I can relate to that. Have you tried breaking tasks into smaller chunks?",
+      time: "8:30 pm",
+      isOwn: false,
+      avatar: "https://avatar.iran.liara.run/public/98"
+    },
+    {
+      id: 4,
+      date: "Yesterday",
+      type: "date"
+    },
+    {
+      id: 5,
+      sender: "-Ali",
+      phone: "+92 302 3456789",
+      message: "Sometimes just talking about it helps. Anyone here tried journaling?",
+      time: "6:52 pm",
+      isOwn: false,
+      avatar: "https://avatar.iran.liara.run/public/89"
+    },
+    {
+      id: 6,
+      sender: "-Rehman",
+      phone: "+92 303 4567890",
+      message: "Sometimes just talking about it helps. Anyone here tried journaling or daily reflections?",
+      time: "6:52 pm",
+      isOwn: true
+    },
+    {
+      id: 7,
+      date: "Today",
+      type: "date"
+    },
+    {
+      id: 8,
+      sender: "Usama",
+      phone: "+92 300 1234567",
+      message: "I started journaling last week. It's been helpful for organizing my thoughts.",
+      time: "2:15 pm",
+      isOwn: false,
+      avatar: "https://avatar.iran.liara.run/public/25"
+    }
+  ];
+
   // Reset input when group changes
   useEffect(() => {
     setMessage("");
@@ -35,100 +98,144 @@ export default function ChatWindow({ group, messages = [] }) {
 
   if (!group) {
     return (
-      <div className="flex items-center justify-center h-full text-gray-500">
-        Select a group to start chatting
+      <div className="flex items-center justify-center h-full text-gray-500 bg-gray-50">
+        <div className="text-center">
+          <div className="w-16 h-16 bg-gray-200 rounded-full flex items-center justify-center mx-auto mb-4">
+            <svg className="w-8 h-8 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" />
+            </svg>
+          </div>
+          <p className="text-lg font-medium text-gray-600">Select a group to start chatting</p>
+        </div>
       </div>
     );
   }
 
   return (
-    <div className="flex flex-col h-full">
+    <div className="flex flex-col h-full bg-white">
       {/* Chat Header */}
-      <div className="flex items-center justify-between border-b pb-2 mb-2">
-        <div className="flex items-center gap-4">
+      <div className="flex items-center justify-between p-4 border-b border-gray-200 bg-white">
+        <div className="flex items-center gap-3">
           <img
             src={group.avatar}
             alt={group.name}
-            className="w-10 h-10 rounded-full"
+            className="w-10 h-10 rounded-full object-cover"
           />
           <div>
-            <h3 className="text-lg text-gray-600 font-semibold">
+            <h3 className="text-lg font-semibold text-gray-800">
               {group.name}
             </h3>
-            <p className="text-sm text-gray-400">Usama, Tayyab, ...</p>
+            <p className="text-sm text-gray-500">you, Tayyab, usama, ~adeel, ...</p>
           </div>
+        </div>
+        <div className="flex items-center gap-3">
+          <button className="p-2 hover:bg-gray-100 rounded-full">
+            <svg className="w-5 h-5 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+            </svg>
+          </button>
+          <button className="p-2 hover:bg-gray-100 rounded-full">
+            <svg className="w-5 h-5 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 5v.01M12 12v.01M12 19v.01M12 6a1 1 0 110-2 1 1 0 010 2zm0 7a1 1 0 110-2 1 1 0 010 2zm0 7a1 1 0 110-2 1 1 0 010 2z" />
+            </svg>
+          </button>
         </div>
       </div>
 
       {/* Chat Messages */}
-      <div className="flex-1 overflow-y-auto bg-gray-50 p-4 rounded-lg space-y-4">
-        {messages.length === 0 ? (
-          <p className="text-gray-600">
-            Chat with <span className="font-semibold">{group.name}</span> will
-            appear here...
-          </p>
-        ) : (
-          messages.map((msg, idx) => (
+      <div className="flex-1 overflow-y-auto bg-gray-50 p-4 space-y-4">
+        {sampleMessages.map((msg) => {
+          if (msg.type === "date") {
+            return (
+              <div key={msg.id} className="flex justify-center">
+                <span className="text-sm text-gray-500 bg-gray-200 px-3 py-1 rounded-full">
+                  {msg.date}
+                </span>
+              </div>
+            );
+          }
+
+          return (
             <div
-              key={idx}
+              key={msg.id}
               className={`flex ${msg.isOwn ? "justify-end" : "justify-start"}`}
             >
-              <div
-                className={`max-w-xs p-3 rounded-lg shadow text-sm ${
-                  msg.isOwn ? "bg-blue-100 text-right" : "bg-gray-100 text-left"
-                }`}
-              >
-                <p className="font-semibold text-blue-600">{msg.sender}</p>
-                <p className="text-gray-800">{msg.text}</p>
-                <p className="text-xs text-gray-400 mt-1">{msg.time}</p>
+              <div className={`flex gap-2 max-w-xs ${msg.isOwn ? "flex-row-reverse" : ""}`}>
+                {!msg.isOwn && (
+                  <img
+                    src={msg.avatar}
+                    alt={msg.sender}
+                    className="w-8 h-8 rounded-full object-cover flex-shrink-0"
+                  />
+                )}
+                <div className={`${msg.isOwn ? "text-right" : "text-left"}`}>
+                  <div className="flex items-center gap-2 mb-1">
+                    <span className="text-sm font-medium text-blue-600">{msg.sender}</span>
+                    <span className="text-xs text-gray-400">{msg.phone}</span>
+                  </div>
+                  <div
+                    className={`p-3 rounded-lg ${
+                      msg.isOwn 
+                        ? "bg-blue-100 text-gray-800" 
+                        : "bg-white text-gray-800 shadow-sm"
+                    }`}
+                  >
+                    <p className="text-sm">{msg.message}</p>
+                    <p className={`text-xs text-gray-400 mt-1 ${msg.isOwn ? "text-left" : "text-right"}`}>
+                      {msg.time}
+                    </p>
+                  </div>
+                </div>
               </div>
             </div>
-          ))
-        )}
+          );
+        })}
       </div>
 
       {/* Chat Input */}
-      <div className="mt-4 flex items-center bg-gray-300 gap-2 relative p-2">
-        {/* Emoji Button */}
-        <button
-          type="button"
-          onClick={() => setShowPicker((prev) => !prev)}
-          className="p-1 rounded-lg hover:bg-blue-100 cursor-pointer text-2xl"
-        >
-          😊
-        </button>
-
-        {/* Emoji Popup */}
-        {showPicker && (
-          <div ref={pickerRef} className="absolute bottom-12 left-0 z-50">
-            <EmojiPicker onEmojiClick={handleEmojiClick} />
-          </div>
-        )}
-
-        {/* Input Field */}
-        <input
-          type="text"
-          value={message}
-          onChange={(e) => setMessage(e.target.value)}
-          placeholder="Type a message"
-          className="flex-1 bg-white px-3 py-2 rounded-md"
-        />
-
-        {/* Send Button */}
-        <button className="bg-blue-600 text-white px-4 py-2 rounded-lg">
-          <svg
-            width="20"
-            height="20"
-            viewBox="0 0 26 26"
-            fill="none"
-            xmlns="http://www.w3.org/2000/svg"
+      <div className="p-4 bg-gray-100 border-t border-gray-200">
+        <div className="flex items-center gap-3">
+          {/* Emoji Button */}
+          <button
+            type="button"
+            onClick={() => setShowPicker((prev) => !prev)}
+            className="p-2 hover:bg-gray-200 rounded-full cursor-pointer"
           >
-            <path
-              d="M8.34493 11.7078C6.79069 11.7078 5.23563 11.7029 3.68138 11.7135C3.46028 11.7151 3.3668 11.6451 3.2977 11.4367C2.24013 8.23977 1.17443 5.0461 0.106295 1.85326C-0.0887987 1.27037 -0.0367737 0.742031 0.442831 0.325218C0.92081 -0.0907796 1.45081 -0.0785683 2.00277 0.197407C9.73254 4.0635 17.4631 7.92634 25.1937 11.79C25.6993 12.0432 26.0033 12.4282 26.0001 13.0111C25.996 13.6079 25.6684 13.9799 25.1531 14.2371C18.4565 17.5814 11.7615 20.9297 5.06655 24.2773C4.0228 24.7991 2.9823 25.325 1.93448 25.8395C1.13704 26.2311 0.25668 25.881 0.0599602 25.0629C-0.00913545 24.7763 0.0282575 24.4295 0.12174 24.1446C0.935443 21.6478 1.77272 19.1583 2.60349 16.6664C2.83435 15.9736 3.07741 15.2849 3.2912 14.5872C3.36029 14.3609 3.4619 14.2933 3.69439 14.2941C6.7224 14.3023 9.74961 14.2998 12.7776 14.2974C12.9695 14.2974 13.1686 14.2974 13.3515 14.2485C13.9929 14.0784 14.3717 13.4743 14.2823 12.7995C14.2026 12.1962 13.6799 11.7192 13.0386 11.7143C11.4737 11.7029 9.90893 11.7102 8.34493 11.7102C8.34493 11.7086 8.34493 11.7078 8.34493 11.7078Z"
-              fill="white"
-            />
-          </svg>
-        </button>
+            <span className="text-xl">😊</span>
+          </button>
+
+          {/* Emoji Popup */}
+          {showPicker && (
+            <div ref={pickerRef} className="absolute bottom-20 left-4 z-50">
+              <EmojiPicker onEmojiClick={handleEmojiClick} />
+            </div>
+          )}
+
+          {/* Input Field */}
+          <input
+            type="text"
+            value={message}
+            onChange={(e) => setMessage(e.target.value)}
+            placeholder="Type a message"
+            className="flex-1 bg-white px-4 py-3 rounded-lg border border-gray-300 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+          />
+
+          {/* Send Button */}
+          <button className="bg-blue-600 text-white p-3 rounded-lg hover:bg-blue-700 transition-colors">
+            <svg
+              width="20"
+              height="20"
+              viewBox="0 0 24 24"
+              fill="none"
+              xmlns="http://www.w3.org/2000/svg"
+            >
+              <path
+                d="M2.01 21L23 12L2.01 3L2 10L17 12L2 14L2.01 21Z"
+                fill="white"
+              />
+            </svg>
+          </button>
+        </div>
       </div>
     </div>
   );

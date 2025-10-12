@@ -1,244 +1,315 @@
-import React, { useState, useRef, useEffect } from "react";
+import React, { useState } from "react";
 import GroupItem from "../components/GroupItem";
 import ChatWindow from "../components/ChatWindow";
+import Layout from "../components/Layout";
 
 const Community = () => {
-  const [dropdownOpen, setDropdownOpen] = useState(false);
-  const dropdownRef = useRef();
   const [selectedGroup, setSelectedGroup] = useState(null);
+  const [showMobileGroups, setShowMobileGroups] = useState(false);
 
-  // Close dropdown on outside click
-  useEffect(() => {
-    const handleClickOutside = (event) => {
-      if (dropdownRef.current && !dropdownRef.current.contains(event.target)) {
-        setDropdownOpen(false);
-      }
-    };
-    document.addEventListener("mousedown", handleClickOutside);
-    return () => document.removeEventListener("mousedown", handleClickOutside);
-  }, []);
+  const groups = [
+    {
+      id: 1,
+      avatar: "https://avatar.iran.liara.run/public/25",
+      name: "The Lounge",
+      message: "Last message from this group...",
+      time: "2h",
+      starred: true
+    },
+    {
+      id: 2,
+      avatar: "https://avatar.iran.liara.run/public/job/astronomer/male",
+      name: "Mind Matters",
+      message: "Last message...",
+      time: "4h",
+      starred: false
+    },
+    {
+      id: 3,
+      avatar: "https://avatar.iran.liara.run/public/98",
+      name: "Fit Focus",
+      message: "Last message...",
+      time: "1d",
+      starred: true
+    },
+    {
+      id: 4,
+      avatar: "https://avatar.iran.liara.run/public/89",
+      name: "Nutrition Corner",
+      message: "Last message...",
+      time: "2d",
+      starred: false
+    },
+    {
+      id: 5,
+      avatar: "https://avatar.iran.liara.run/public/15",
+      name: "Wellness Warriors",
+      message: "Great workout session today!",
+      time: "3d",
+      starred: true
+    },
+    {
+      id: 6,
+      avatar: "https://avatar.iran.liara.run/public/42",
+      name: "Mental Health Support",
+      message: "Thanks for sharing your experience",
+      time: "4d",
+      starred: false
+    },
+    {
+      id: 7,
+      avatar: "https://avatar.iran.liara.run/public/67",
+      name: "Healthy Recipes",
+      message: "Check out this new smoothie recipe",
+      time: "5d",
+      starred: true
+    },
+    {
+      id: 8,
+      avatar: "https://avatar.iran.liara.run/public/33",
+      name: "Meditation Group",
+      message: "Daily meditation reminder",
+      time: "1w",
+      starred: false
+    },
+    {
+      id: 9,
+      avatar: "https://avatar.iran.liara.run/public/78",
+      name: "Fitness Challenges",
+      message: "30-day challenge starts tomorrow!",
+      time: "1w",
+      starred: true
+    },
+    {
+      id: 10,
+      avatar: "https://avatar.iran.liara.run/public/91",
+      name: "Stress Management",
+      message: "Breathing exercises for anxiety",
+      time: "2w",
+      starred: false
+    }
+  ];
 
   return (
-    <div className="flex h-screen">
-      {/* Sidebar */}
-      <aside className="w-60 bg-white border-r border-white shadow-md flex flex-col">
-        <div className="flex items-center bg-blue-400 justify-center space-x-2 py-5 border-white border-b">
-          <img src="/logoWhite.png" alt="Logo" className="h-8 w-8" />
-          <span className="text-white font-bold text-xl mr-16">EquiLife</span>
+    <Layout>
+      <div className="flex h-full bg-white min-h-0 relative">
+        {/* Mobile Groups Toggle Button */}
+        <button
+          onClick={() => setShowMobileGroups(!showMobileGroups)}
+          className="lg:hidden fixed top-20 left-4 z-30 cursor-pointer text-white p-2 rounded-lg shadow-lg hover:shadow-xl transition-colors"
+        >
+          <img src="/group_icon.png" alt="Groups" className="w-5 h-5" />
+        </button>
+
+        {/* Mobile Groups Overlay */}
+        {showMobileGroups && (
+          <div 
+            className="lg:hidden fixed inset-0 bg-black bg-opacity-25 z-40"
+            onClick={() => setShowMobileGroups(false)}
+          />
+        )}
+
+        {/* Mobile Groups Panel */}
+        <div className={`lg:hidden fixed inset-y-0 left-0 z-50 w-80 bg-white transform transition-transform duration-300 ease-in-out ${
+          showMobileGroups ? 'translate-x-0' : '-translate-x-full'
+        }`}>
+          <div className="flex flex-col h-full">
+            {/* Mobile Groups Header */}
+            <div className="p-4 border-b border-gray-200 flex-shrink-0 bg-blue-400">
+              <div className="flex items-center justify-between">
+                <h2 className="text-lg font-semibold text-white">Groups</h2>
+                <button
+                  onClick={() => setShowMobileGroups(false)}
+                  className="text-white hover:bg-blue-500 rounded-md p-1 transition-colors"
+                >
+                  <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                  </svg>
+                </button>
+              </div>
+              {/* Search bar */}
+              <div className="relative mt-4">
+                <svg
+                  className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-400"
+                  xmlns="http://www.w3.org/2000/svg"
+                  fill="none"
+                  viewBox="0 0 24 24"
+                  stroke="currentColor"
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth={2}
+                    d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"
+                  />
+                </svg>
+                <input
+                  type="text"
+                  placeholder="Search groups..."
+                  className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                />
+              </div>
+            </div>
+
+            {/* Mobile Groups List */}
+            <div className="flex-1 overflow-y-auto max-h-full pb-4">
+              {groups.map((group) => (
+                <div
+                  key={group.id}
+                  onClick={() => {
+                    setSelectedGroup(group);
+                    setShowMobileGroups(false);
+                  }}
+                  className={`flex items-center justify-between p-4 hover:bg-gray-50 cursor-pointer border-b border-gray-100 ${
+                    selectedGroup?.id === group.id ? 'bg-gray-100' : ''
+                  }`}
+                >
+                  <div className="flex items-center gap-3">
+                    <img
+                      src={group.avatar}
+                      alt={`${group.name} avatar`}
+                      className="w-12 h-12 rounded-full object-cover"
+                    />
+                    <div className="flex-1 min-w-0">
+                      <h3 className={`font-medium text-sm ${selectedGroup?.id === group.id ? 'font-bold' : ''}`}>
+                        {group.name}
+                      </h3>
+                      <p className="text-xs text-gray-500 truncate">
+                        {group.message}
+                      </p>
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <span className="text-xs text-gray-400">{group.time}</span>
+                    {group.starred ? (
+                      <svg
+                        xmlns="http://www.w3.org/2000/svg"
+                        className="h-4 w-4 text-yellow-500"
+                        viewBox="0 0 24 24"
+                        fill="currentColor"
+                      >
+                        <path d="M12 17.27L18.18 21l-1.64-7.03L22 9.24l-7.19-.61L12 2 9.19 8.63 2 9.24l5.46 4.73L5.82 21z" />
+                      </svg>
+                    ) : (
+                      <svg
+                        xmlns="http://www.w3.org/2000/svg"
+                        className="h-4 w-4 text-gray-300"
+                        fill="none"
+                        viewBox="0 0 24 24"
+                        stroke="currentColor"
+                        strokeWidth={1.5}
+                      >
+                        <path
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                          d="M11.48 3.499a.562.562 0 0 1 1.04 0l2.125 5.111 5.518.442c.499.04.701.663.321.988l-4.192 3.57 1.285 5.385c.115.483-.408.874-.832.626L12 17.771l-4.745 2.85c-.424.248-.947-.143-.832-.626l1.285-5.385-4.192-3.57c-.38-.325-.178-.948.321-.988l5.518-.442 2.125-5.111z"
+                        />
+                      </svg>
+                    )}
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
         </div>
 
-        <nav className="flex flex-col px-6 pt-4 text-gray-600 space-y-2 text-sm">
-          {/* Dashboard */}
-          <button className="flex items-center py-5 space-x-3 hover:text-blue-500">
-            <img src="/dashIcon.png" alt="Dashboard Icon" className="h-5 w-5" />
-            <span>Dashboard</span>
-          </button>
-
-          {/* Assessment */}
-          <button className="flex items-center py-5 space-x-3 hover:text-blue-500">
-            <img
-              src="/mentalIcon.png"
-              alt="Assessment Icon"
-              className="h-5 w-5"
-            />
-            <span>Assessment</span>
-          </button>
-
-          {/* Fitness */}
-          <button className="flex items-center py-5 space-x-3 hover:text-blue-500">
-            <img
-              src="/physicalIcon.png"
-              alt="Fitness Icon"
-              className="h-5 w-5"
-            />
-            <span>Fitness</span>
-          </button>
-
-          {/* Nutrition */}
-          <button className="flex items-center py-5 space-x-3 hover:text-blue-500">
-            <img
-              src="/nutritionIcon.png"
-              alt="Nutrition Icon"
-              className="h-5 w-5"
-            />
-            <span>Nutrition</span>
-          </button>
-
-          {/* Community (active) */}
-          <button className="flex items-center py-5 space-x-3 text-blue-600 font-semibold bg-gray-100 rounded-r-full pr-2">
-            <img src="/commIcon.png" alt="Community Icon" className="h-5 w-5" />
-            <span>Community</span>
-          </button>
-        </nav>
-      </aside>
-
-      {/* Right Side: Main Section */}
-      <div className="flex-1 flex flex-col">
-        {/* Navbar */}
-        <nav className="bg-blue-400 py-5 px-6 shadow-md flex items-center justify-between w-full">
-          {/* Left - Logo, App Name, and Welcome Message */}
-          <div className="flex items-center space-x-4">
-            <span className="text-white text-2xl font-semibold">
-              Community Interaction
-            </span>
-          </div>
-
-          {/* Right - Notifications and User */}
-          <div
-            className="flex items-center space-x-4 relative"
-            ref={dropdownRef}
-          >
-            {/* Notification Icon */}
+        {/* Left side section with Group names - Hidden on mobile, shown on desktop */}
+        <div className="hidden lg:block lg:w-1/4 bg-white border-r border-gray-200 flex flex-col min-h-0">
+          {/* Heading and Search */}
+          <div className="p-4 border-b border-gray-200 flex-shrink-0">
+            <div className="flex items-center justify-between mb-4">
+              <h2 className="text-lg font-semibold text-gray-800">
+                Groups
+              </h2>
+        </div>
+            {/* Search bar */}
             <div className="relative">
               <svg
+                className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-400"
                 xmlns="http://www.w3.org/2000/svg"
-                className="h-6 w-6 text-white cursor-pointer"
                 fill="none"
                 viewBox="0 0 24 24"
                 stroke="currentColor"
-                strokeWidth="1.5"
               >
                 <path
                   strokeLinecap="round"
                   strokeLinejoin="round"
-                  d="M14.857 17.082a23.848 23.848 0 0 0 5.454-1.31A8.967 8.967 0 0 1 18 9.75V9A6 6 0 0 0 6 9v.75a8.967 8.967 0 0 1-2.312 6.022c1.733.64 3.56 1.085 5.455 1.31m5.714 0a24.255 24.255 0 0 1-5.714 0m5.714 0a3 3 0 1 1-5.714 0M3.124 7.5A8.969 8.969 0 0 1 5.292 3m13.416 0a8.969 8.969 0 0 1 2.168 4.5"
+                  strokeWidth={2}
+                  d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"
                 />
               </svg>
-              <span className="absolute -top-2 -right-2 bg-red-600 text-white text-xs px-1 rounded-full">
-                11
-              </span>
-            </div>
-
-            {/* User Avatar & Name */}
-            <div
-              className="flex items-center space-x-1 cursor-pointer mr-6"
-              onClick={() => setDropdownOpen(!dropdownOpen)}
-            >
-              <img
-                src="/user.jpg"
-                alt="User Avatar"
-                className="h-7 w-7 rounded-full object-cover"
+              <input
+                type="text"
+                placeholder="Search groups..."
+                className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
               />
-              <span className="text-white text-md ml-2">Usama Rasheed</span>
             </div>
-
-            {/* Dropdown Menu */}
-            {dropdownOpen && (
-              <div className="absolute right-0 top-10 bg-white shadow-md rounded-md w-40 z-50">
-                <button className="w-full text-left px-4 py-2 hover:bg-gray-100">
-                  Settings
-                </button>
-                <button className="w-full text-left px-4 py-2 hover:bg-gray-100">
-                  Logout
-                </button>
-              </div>
-            )}
           </div>
-        </nav>
 
-        {/* Main content */}
-        <main className="flex-1 flex">
-          {/* Left side section with Group names */}
-
-          <div className="w-1/4 pt-2">
-            {/* Heading and Search */}
-            <div className="heading-section flex items-center justify-between bg-white mb-2 p-3">
-              <h2 className="flex text-lg font-semibold text-blue-600">
-                Groups
-              </h2>
-              {/* Search button */}
-              <svg
-                className="cursor-pointer"
-                xmlns="http://www.w3.org/2000/svg"
-                x="0px"
-                y="0px"
-                width="30"
-                height="30"
-                viewBox="0 0 50 50"
+          {/* List of Groups - Scrollable */}
+          <div className="flex-1 overflow-y-auto max-h-full " style={{paddingBottom: '110px'}}>
+            {groups.map((group) => (
+              <div
+                key={group.id}
+                onClick={() => setSelectedGroup(group)}
+                className={`flex items-center justify-between p-4 hover:bg-gray-50 cursor-pointer border-b border-gray-100 ${
+                  selectedGroup?.id === group.id ? 'bg-gray-100' : ''
+                }`}
               >
-                <path d="M 21.5 8 C 14.057 8 8 14.057 8 21.5 C 8 28.943 14.057 35 21.5 35 C 24.789065 35 27.805703 33.816017 30.150391 31.853516 C 30.435292 32.138417 39.711913 41.416007 39.943359 41.648438 C 40.413359 42.118437 41.176484 42.118437 41.646484 41.648438 C 42.116484 41.178438 42.116484 40.415312 41.646484 39.945312 C 41.415038 39.712882 32.138417 30.435292 31.853516 30.150391 C 33.816017 27.805703 35 24.789065 35 21.5 C 35 14.057 28.943 8 21.5 8 z M 21.5 9 C 28.392 9 34 14.608 34 21.5 C 34 28.392 28.392 34 21.5 34 C 14.608 34 9 28.392 9 21.5 C 9 14.608 14.608 9 21.5 9 z"></path>
-              </svg>
+                <div className="flex items-center gap-3">
+                  <img
+                    src={group.avatar}
+                    alt={`${group.name} avatar`}
+                    className="w-12 h-12 rounded-full object-cover"
+                  />
+                  <div className="flex-1 min-w-0">
+                    <h3 className={`font-medium text-sm ${selectedGroup?.id === group.id ? 'font-bold' : ''}`}>
+                      {group.name}
+                    </h3>
+                    <p className="text-xs text-gray-500 truncate">
+                      {group.message}
+                    </p>
             </div>
-
-            {/* List of Groups */}
-
-            <div
-              onClick={() =>
-                setSelectedGroup({
-                  avatar: "https://avatar.iran.liara.run/public/25",
-                  name: "The Lounge",
-                  message: "Last message from this group...",
-                })
-              }
-            >
-              <GroupItem
-                avatar="https://avatar.iran.liara.run/public/25"
-                name="The Lounge"
-                message="Last message from this group..."
-                starred={true}
-              />
             </div>
-
-            <div
-              onClick={() =>
-                setSelectedGroup({
-                  avatar:
-                    "https://avatar.iran.liara.run/public/job/astronomer/male",
-                  name: "Mind Matters",
-                  message: "Last message...",
-                })
-              }
-            >
-              <GroupItem
-                avatar="https://avatar.iran.liara.run/public/job/astronomer/male"
-                name="Mind Matters"
-                message="Last message..."
-                starred={false}
-              />
+                <div className="flex items-center gap-2">
+                  <span className="text-xs text-gray-400">{group.time}</span>
+                  {group.starred ? (
+                    <svg
+                      xmlns="http://www.w3.org/2000/svg"
+                      className="h-4 w-4 text-yellow-500"
+                      viewBox="0 0 24 24"
+                      fill="currentColor"
+                    >
+                      <path d="M12 17.27L18.18 21l-1.64-7.03L22 9.24l-7.19-.61L12 2 9.19 8.63 2 9.24l5.46 4.73L5.82 21z" />
+                    </svg>
+                  ) : (
+                    <svg
+                      xmlns="http://www.w3.org/2000/svg"
+                      className="h-4 w-4 text-gray-300"
+                      fill="none"
+                      viewBox="0 0 24 24"
+                      stroke="currentColor"
+                      strokeWidth={1.5}
+                    >
+                      <path
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        d="M11.48 3.499a.562.562 0 0 1 1.04 0l2.125 5.111 5.518.442c.499.04.701.663.321.988l-4.192 3.57 1.285 5.385c.115.483-.408.874-.832.626L12 17.771l-4.745 2.85c-.424.248-.947-.143-.832-.626l1.285-5.385-4.192-3.57c-.38-.325-.178-.948.321-.988l5.518-.442 2.125-5.111z"
+                      />
+                    </svg>
+                  )}
             </div>
-
-            <div
-              onClick={() =>
-                setSelectedGroup({
-                  avatar: "https://avatar.iran.liara.run/public/98",
-                  name: "Fit Focus",
-                  message: "Last message...",
-                })
-              }
-            >
-              <GroupItem
-                avatar="https://avatar.iran.liara.run/public/98"
-                name="Fit Focus"
-                message="Last message..."
-                starred={true}
-              />
-            </div>
-
-            <div
-              onClick={() =>
-                setSelectedGroup({
-                  avatar: "https://avatar.iran.liara.run/public/89",
-                  name: "Nutrition Corner",
-                  message: "Last message...",
-                })
-              }
-            >
-              <GroupItem
-                avatar="https://avatar.iran.liara.run/public/89"
-                name="Nutrition Corner"
-                message="Last message..."
-                starred={false}
-              />
+              </div>
+            ))}
             </div>
           </div>
 
-          {/* Right side section with Group names */}
-          <div className="flex-1 p-4">
-            <ChatWindow group={selectedGroup} />
-          </div>
-        </main>
+        {/* Right side section with Chat Window */}
+        <div className="flex-1 flex flex-col w-full lg:w-auto min-h-0">
+          <ChatWindow group={selectedGroup} />
+        </div>
       </div>
-    </div>
+    </Layout>
   );
 };
 

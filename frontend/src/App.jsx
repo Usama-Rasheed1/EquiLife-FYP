@@ -6,6 +6,9 @@ import LandingPage from "./pages/LandingPage";
 import Aboutus from "./pages/Aboutus";
 import Contactus from "./pages/Contactus";
 import Dashboard from "./pages/Dashboard";
+import Assessment from "./pages/Assessment";
+import Fitness from "./pages/Fitness";
+import Nutrition from "./pages/Nutrition";
 import Community from './pages/Community';
 
 
@@ -20,6 +23,9 @@ function App() {
         <Route path="/aboutus" element={<Aboutus />} />
         <Route path="/contactus" element={<Contactus />} />
         <Route path="/dashboard" element={<Dashboard />} />
+        <Route path="/dashboard/assessment" element={<Assessment />} />
+        <Route path="/dashboard/fitness" element={<Fitness />} />
+        <Route path="/dashboard/nutrition" element={<Nutrition />} />
         <Route path="/dashboard/community" element={<Community />} />
 
 
