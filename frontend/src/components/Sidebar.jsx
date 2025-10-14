@@ -68,9 +68,9 @@ const Sidebar = ({ activePage, onPageChange, onClose }) => {
           <button
             key={item.id}
             onClick={() => onPageChange(item.id)}
-            className={`flex items-center py-5 space-x-3 hover:text-blue-500 hover:bg-gray-100 ${
+            className={`flex items-center py-5 space-x-3 hover:text-blue-500 hover:bg-gray-100 cursor-pointer ${
               activePage === item.id
-                ? "text-blue-600 font-semibold bg-gray-100 rounded-r-full pr-2"
+                ? "text-blue-600 font-semibold bg-gray-100 pr-2"
                 : ""
             }`}
           >
