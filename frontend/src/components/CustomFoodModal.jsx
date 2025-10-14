@@ -1,5 +1,5 @@
 import React, { useState } from "react";
-import { X } from "lucide-react";
+import AppModal from "./AppModal";
 
 const CustomFoodModal = ({ isOpen, onClose, onAddFood }) => {
   const [formData, setFormData] = useState({
@@ -93,30 +93,13 @@ const CustomFoodModal = ({ isOpen, onClose, onAddFood }) => {
     onClose();
   };
 
-  if (!isOpen) return null;
-
   return (
-    <div className="fixed inset-0 z-[9999] flex items-center justify-center scrollbar-hide">
-      {/* Backdrop */}
-      <div 
-        className="absolute inset-0 bg-transparent backdrop-blur-sm"
-        onClick={handleClose}
-      />
-      
-      {/* Modal */}
-      <div className="relative bg-white rounded-lg shadow-2xl p-4 sm:p-6 w-full max-w-sm sm:max-w-md mx-4 transform transition-all duration-300 scale-100 max-h-[90vh] overflow-y-auto scrollbar-hide">
-        {/* Header */}
-        <div className="flex items-center justify-between mb-4 sm:mb-6">
-          <h2 className="text-lg sm:text-xl font-semibold text-gray-900">Custom Food Entry</h2>
-          <button
-            onClick={handleClose}
-            className="text-gray-400 hover:text-gray-600 transition-colors"
-          >
-            <X size={20} />
-          </button>
-        </div>
-
-        {/* Form */}
+    <AppModal
+      isOpen={isOpen}
+      onClose={handleClose}
+      title="Custom Food Entry"
+    >
+      {/* Form */}
         <div className="space-y-3 sm:space-y-4">
           {/* Food Name */}
           <div>
@@ -244,8 +227,7 @@ const CustomFoodModal = ({ isOpen, onClose, onAddFood }) => {
             Add
           </button>
         </div>
-      </div>
-    </div>
+    </AppModal>
   );
 };
 
