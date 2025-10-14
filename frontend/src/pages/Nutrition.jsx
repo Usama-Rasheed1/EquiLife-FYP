@@ -37,12 +37,14 @@ const Nutrition = () => {
     // Clear any editing state when adding new food
     setEditIndex(null);
     setEditFood(null);
-    
+
     setMeals((prev) => {
       const updated = { ...prev };
       // Check if the food item already exists in this meal
-      const existingIndex = prev[meal].findIndex(item => item.name === food.name);
-      
+      const existingIndex = prev[meal].findIndex(
+        (item) => item.name === food.name
+      );
+
       if (existingIndex !== -1) {
         // If item exists, increase its quantity instead of adding a new entry
         updated[meal] = prev[meal].map((item, index) =>
@@ -53,8 +55,11 @@ const Nutrition = () => {
       } else {
         // If item doesn't exist, add it as a new entry
         // Mark as custom if it's not in the predefined foodList
-        const isCustomFood = !foodList.some(f => f.name === food.name);
-        updated[meal] = [...prev[meal], { ...food, quantity: 1, isCustom: isCustomFood }];
+        const isCustomFood = !foodList.some((f) => f.name === food.name);
+        updated[meal] = [
+          ...prev[meal],
+          { ...food, quantity: 1, isCustom: isCustomFood },
+        ];
       }
       return updated;
     });
@@ -108,14 +113,20 @@ const Nutrition = () => {
     setMeals((prev) => {
       const updated = { ...prev };
       const currentQuantity = meals[meal][index].quantity; // Preserve current quantity
-      
+
       // Check if it's a predefined food or custom food
       const predefinedFood = foodList.find((f) => f.name === editValue);
-      const customFood = Object.values(meals).flat().find(item => item.name === editValue && item.isCustom);
-      
+      const customFood = Object.values(meals)
+        .flat()
+        .find((item) => item.name === editValue && item.isCustom);
+
       if (predefinedFood) {
         // Update with predefined food data
-        updated[meal][index] = { ...predefinedFood, quantity: currentQuantity, isCustom: false };
+        updated[meal][index] = {
+          ...predefinedFood,
+          quantity: currentQuantity,
+          isCustom: false,
+        };
       } else if (customFood) {
         // Update with custom food data (preserve custom properties)
         updated[meal][index] = { ...customFood, quantity: currentQuantity };
@@ -123,7 +134,7 @@ const Nutrition = () => {
         // If neither found, keep current item but update name
         updated[meal][index] = { ...updated[meal][index], name: editValue };
       }
-      
+
       return updated;
     });
     setEditIndex(null);
@@ -159,32 +170,36 @@ const Nutrition = () => {
         {/* Left Side - Scrollable Form and Cards */}
         <div className="flex-1 p-3 sm:p-6 border-r border-gray-200 overflow-y-auto scrollbar-hide">
           {/* Add Calories Form */}
-          <h2 className="text-lg sm:text-xl font-semibold mb-3 sm:mb-4">Add Calories</h2>
+          <h2 className="text-lg sm:text-xl font-semibold mb-3 sm:mb-4">
+            Add Calories
+          </h2>
 
           <div className="flex flex-col sm:flex-row gap-3 sm:gap-4 mb-6">
             {["Breakfast", "Lunch", "Dinner"].map((meal) => (
               <div key={meal} className="flex-1 min-w-0">
-                <label className="block text-sm font-medium mb-1 text-gray-700">{meal}</label>
+                <label className="block text-sm font-medium mb-1 text-gray-700">
+                  {meal}
+                </label>
                 <select
                   className="w-full border border-gray-300 rounded-lg px-3 py-2 cursor-pointer text-sm sm:text-base focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                   value={dropdownValues[meal]}
-                   onChange={(e) => {
-                     const selectedValue = e.target.value;
-                     setDropdownValues((prev) => ({
-                       ...prev,
-                       [meal]: selectedValue,
-                     }));
-                     
-                     if (selectedValue === "Custom") {
-                       setSelectedMeal(meal);
-                       setIsCustomModalOpen(true);
-                     } else {
-                       const food = foodList.find(
-                         (f) => f.name === selectedValue
-                       );
-                       if (food) handleAddFood(meal, food);
-                     }
-                   }}
+                  onChange={(e) => {
+                    const selectedValue = e.target.value;
+                    setDropdownValues((prev) => ({
+                      ...prev,
+                      [meal]: selectedValue,
+                    }));
+
+                    if (selectedValue === "Custom") {
+                      setSelectedMeal(meal);
+                      setIsCustomModalOpen(true);
+                    } else {
+                      const food = foodList.find(
+                        (f) => f.name === selectedValue
+                      );
+                      if (food) handleAddFood(meal, food);
+                    }
+                  }}
                 >
                   <option value="">Select Food</option>
                   {foodList.map((food, i) => (
@@ -213,7 +228,9 @@ const Nutrition = () => {
                 key={meal}
                 className="border border-gray-200 rounded-lg p-3 sm:p-4 shadow-sm"
               >
-                <h4 className="font-semibold mb-2 sm:mb-3 text-sm sm:text-base">{meal}</h4>
+                <h4 className="font-semibold mb-2 sm:mb-3 text-sm sm:text-base">
+                  {meal}
+                </h4>
                 {meals[meal].length === 0 ? (
                   <p className="text-gray-400 text-sm">No items added</p>
                 ) : (
@@ -233,8 +250,15 @@ const Nutrition = () => {
                                 const newFoodName = e.target.value;
                                 setEditValue(newFoodName);
                                 // Update editFood to show new calories immediately
-                                const newFood = foodList.find(f => f.name === newFoodName);
-                                const customFood = Object.values(meals).flat().find(item => item.name === newFoodName && item.isCustom);
+                                const newFood = foodList.find(
+                                  (f) => f.name === newFoodName
+                                );
+                                const customFood = Object.values(meals)
+                                  .flat()
+                                  .find(
+                                    (item) =>
+                                      item.name === newFoodName && item.isCustom
+                                  );
                                 if (newFood) {
                                   setEditFood(newFood);
                                 } else if (customFood) {
@@ -248,11 +272,21 @@ const Nutrition = () => {
                                 </option>
                               ))}
                               {/* Add custom foods to edit dropdown */}
-                              {Object.values(meals).flat().filter(item => item.isCustom && !foodList.some(f => f.name === item.name)).map((customFood, idx) => (
-                                <option key={`custom-${idx}`} value={customFood.name}>
-                                  {customFood.name} (Custom)
-                                </option>
-                              ))}
+                              {Object.values(meals)
+                                .flat()
+                                .filter(
+                                  (item) =>
+                                    item.isCustom &&
+                                    !foodList.some((f) => f.name === item.name)
+                                )
+                                .map((customFood, idx) => (
+                                  <option
+                                    key={`custom-${idx}`}
+                                    value={customFood.name}
+                                  >
+                                    {customFood.name} (Custom)
+                                  </option>
+                                ))}
                             </select>
                           ) : (
                             <div className="flex flex-wrap items-center gap-1 sm:gap-2">
@@ -335,7 +369,9 @@ const Nutrition = () => {
         <div className="w-full lg:w-1/4 p-3 sm:p-6 bg-gray-50 flex flex-col gap-4 sm:gap-6 border-l border-gray-200">
           <div>
             <h4 className="text-base sm:text-lg font-semibold mb-1">BMI</h4>
-            <p className="text-xl sm:text-2xl font-bold text-blue-600 text-center">22.8</p>
+            <p className="text-xl sm:text-2xl font-bold text-blue-600 text-center">
+              22.8
+            </p>
           </div>
 
           <div>
@@ -345,28 +381,34 @@ const Nutrition = () => {
             </p>
           </div>
 
-          <div>
+          <div className="w-full flex flex-col items-center bg-white rounded-lg shadow-sm p-3 sm:p-4">
             <h4 className="text-base sm:text-lg font-semibold mb-2 sm:mb-3 text-center">
               Food Intake
             </h4>
-            <ResponsiveContainer width="100%" height={140} className="sm:h-[160px]">
-              <PieChart>
-                <Pie
-                  data={chartData}
-                  cx="50%"
-                  cy="50%"
-                  innerRadius={45}
-                  outerRadius={60}
-                  paddingAngle={6}
-                  dataKey="value"
-                >
-                  {chartData.map((entry, index) => (
-                    <Cell key={`cell-${index}`} fill={COLORS[index]} />
-                  ))}
-                </Pie>
-                <Legend verticalAlign="bottom" height={36} />
-              </PieChart>
-            </ResponsiveContainer>
+            <div className="w-full h-40 sm:h-48 md:h-38 flex justify-center">
+              <ResponsiveContainer width="100%" height="100%">
+                <PieChart>
+                  <Pie
+                    data={chartData}
+                    cx="50%"
+                    cy="50%"
+                    innerRadius="55%"
+                    outerRadius="70%"
+                    paddingAngle={5}
+                    dataKey="value"
+                  >
+                    {chartData.map((entry, index) => (
+                      <Cell key={`cell-${index}`} fill={COLORS[index]} />
+                    ))}
+                  </Pie>
+                  <Legend
+                    verticalAlign="bottom"
+                    align="center"
+                    wrapperStyle={{ fontSize: "12px" }}
+                  />
+                </PieChart>
+              </ResponsiveContainer>
+            </div>
           </div>
 
           <button className="bg-blue-500 hover:bg-blue-600 text-white py-2 px-4 rounded-lg shadow transition-all self-center w-full mt-1 cursor-pointer text-sm sm:text-base">
