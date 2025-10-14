@@ -1,1 +1,8 @@
 @import "tailwindcss";
+
+html {
+	font-size: 14px;
+}
+body {
+	line-height: 1.45;
+}
