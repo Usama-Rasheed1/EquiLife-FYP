@@ -3,7 +3,7 @@ import { useLocation, useNavigate } from "react-router-dom";
 import Sidebar from "./Sidebar";
 import Navbar from "./Navbar";
 
-const Layout = ({ children, userName = "Rehman" }) => {
+const Layout = ({ children, userName = "Tayyab " }) => {
   const location = useLocation();
   const navigate = useNavigate();
   const [activePage, setActivePage] = useState("dashboard");
@@ -73,7 +73,7 @@ const Layout = ({ children, userName = "Rehman" }) => {
         <Navbar userName={userName} activePage={activePage} onToggleSidebar={toggleSidebar} />
 
         {/* Main content */}
-        <main className="flex-1 bg-gray-50 overflow-hidden">
+        <main className="flex-1 bg-gray-50 overflow-y-auto">
           <div className="h-full">
             {children}
           </div>
