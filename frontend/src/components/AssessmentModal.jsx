@@ -208,6 +208,7 @@ const AssessmentModal = ({ isOpen, onClose, testId }) => {
         isOpen={isOpen}
         onClose={handleEndTest}
         title="Assessment Results"
+        closeOnOutsideClick={false}
       >
         <div className="space-y-4 sm:space-y-6">
           <div className="text-center">
@@ -254,6 +255,7 @@ const AssessmentModal = ({ isOpen, onClose, testId }) => {
       isOpen={isOpen}
       onClose={onClose}
       title={testData.name}
+      closeOnOutsideClick={false}
     >
       <div className="space-y-4 sm:space-y-6">
         {/* Progress Indicator */}

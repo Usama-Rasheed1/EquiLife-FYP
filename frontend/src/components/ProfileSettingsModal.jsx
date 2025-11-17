@@ -1,11 +1,11 @@
 import React, { useState, useEffect } from "react";
 import AppModal from "./AppModal";
+import axios from "axios";
 import { Eye, EyeOff, ChevronDown, ChevronUp } from "lucide-react";
 
-const ProfileSettingsModal = ({ isOpen, onClose, userData }) => {
+const ProfileSettingsModal = ({ isOpen, onClose, userData, onSaved }) => {
   // State
   const [fullName, setFullName] = useState("");
-  const [email, setEmail] = useState("");
   const [gender, setGender] = useState("");
   const [dob, setDob] = useState("");
   const [height, setHeight] = useState("");
@@ -20,16 +20,43 @@ const ProfileSettingsModal = ({ isOpen, onClose, userData }) => {
 
   // Load user data from backend
   useEffect(() => {
-    if (userData) {
-      setFullName(userData.fullName || "");
-      setEmail(userData.email || "");
-      setGender(userData.gender || "");
-      setDob(userData.dob || "");
-      setHeight(userData.height || "");
-      setWeight(userData.weight || "");
-      setProfilePhoto(userData.profilePhoto || "/user.jpg");
-    }
-  }, [userData]);
+    const load = async () => {
+      if (userData) {
+        setFullName(userData.fullName || "");
+        setGender(userData.gender || "");
+        // normalize dob to yyyy-mm-dd for input
+        setDob(userData.dob ? new Date(userData.dob).toISOString().slice(0, 10) : "");
+        setHeight(userData.heightCm ?? userData.height ?? "");
+        setWeight(userData.weightKg ?? userData.weight ?? "");
+        setProfilePhoto(userData.profilePhoto || "/user.jpg");
+        return;
+      }
+
+  if (!isOpen) return;
+
+      // fetch profile from backend
+      try {
+        const token = localStorage.getItem("authToken");
+        if (!token) return;
+        const url = `${import.meta.env.VITE_BACKEND_BASE_URL}/api/auth/profile`;
+        const res = await axios.get(url, { headers: { Authorization: `Bearer ${token}` } });
+        const u = res.data?.user;
+        if (u) {
+          setFullName(u.fullName || "");
+          setEmail(u.email || "");
+          setGender(u.gender || "");
+          setDob(u.dob ? new Date(u.dob).toISOString().slice(0, 10) : "");
+          setHeight(u.heightCm ?? u.height ?? "");
+          setWeight(u.weightKg ?? u.weight ?? "");
+          setProfilePhoto(u.profilePhoto || "/user.jpg");
+        }
+      } catch (err) {
+        console.error("Load profile error:", err);
+      }
+    };
+
+    load();
+  }, [userData, isOpen]);
 
   // Upload handler
   const handlePhotoUpload = (e) => {
@@ -50,7 +77,6 @@ const ProfileSettingsModal = ({ isOpen, onClose, userData }) => {
   // Save button validation
   const canSave =
     fullName.trim() &&
-    email.trim() &&
     gender.trim() &&
     dob &&
     height &&
@@ -58,15 +84,64 @@ const ProfileSettingsModal = ({ isOpen, onClose, userData }) => {
     (!passwordRequired || (passwordRequired && passwordValid));
 
   // Handle Save
-  const handleSave = () => {
+  const [saving, setSaving] = useState(false);
+  const [message, setMessage] = useState(null);
+
+  const handleSave = async () => {
     if (!canSave) return;
-    // TODO: Add your API call to save profile here
-    // After saving, close modal
-    onClose();
+    setSaving(true);
+    setMessage(null);
+    try {
+      const token = localStorage.getItem("authToken");
+      if (!token) {
+        setMessage({ type: 'error', text: 'Not authenticated' });
+        setSaving(false);
+        return;
+      }
+      const url = `${import.meta.env.VITE_BACKEND_BASE_URL}/api/auth/profile`;
+      const payload = {
+        fullName,
+        gender: gender ? gender.toLowerCase() : undefined,
+        dob: dob || undefined,
+        heightCm: height ? Number(height) : undefined,
+        weightKg: weight ? Number(weight) : undefined,
+      };
+      await axios.put(url, payload, { headers: { Authorization: `Bearer ${token}` } });
+      setMessage({ type: 'success', text: 'Profile updated' });
+      // notify parent about updated profile
+      try {
+        if (typeof onSaved === 'function') {
+          onSaved({
+            fullName,
+            gender: gender ? gender.toLowerCase() : undefined,
+            dob: dob || undefined,
+            heightCm: height ? Number(height) : undefined,
+            weightKg: weight ? Number(weight) : undefined,
+            profilePhoto,
+          });
+        }
+      } catch (e) {
+        console.error('onSaved callback error:', e);
+      }
+      // close modal after brief delay
+      setTimeout(() => {
+        setSaving(false);
+        onClose();
+      }, 800);
+    } catch (err) {
+      const msg = err?.response?.data?.message || 'Failed to update profile';
+      setMessage({ type: 'error', text: msg });
+      setSaving(false);
+    }
   };
 
   return (
-    <AppModal isOpen={isOpen} onClose={onClose} title="Profile" widthClass="max-w-3xl">
+    <AppModal
+      isOpen={isOpen}
+      onClose={onClose}
+      title="Profile"
+      widthClass="max-w-3xl"
+    >
       <div className="w-full flex flex-col items-center space-y-5">
         {/* Profile Photo */}
         <div className="relative group cursor-pointer">
@@ -93,73 +168,72 @@ const ProfileSettingsModal = ({ isOpen, onClose, userData }) => {
         </div>
 
         {/* Form Grid */}
-        <div className="grid grid-cols-2 gap-3 w-full max-w-3xl">
-          <div>
-            <label className="text-sm font-medium">Full Name</label>
-            <input
-              type="text"
-              value={fullName}
-              onChange={(e) => setFullName(e.target.value)}
-              className="w-full border rounded-lg p-2"
-            />
-          </div>
-          <div>
-            <label className="text-sm font-medium">Email</label>
-            <input
-              type="email"
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              className="w-full border rounded-lg p-2"
-            />
-          </div>
+              <div className="grid grid-cols-2 gap-3 w-full max-w-3xl">
+                <div>
+                  <label className="text-sm font-medium">Full Name</label>
+                  <input
+                    type="text"
+                    value={fullName}
+                    onChange={(e) => setFullName(e.target.value)}
+                    className="w-full border rounded-lg p-2"
+                  />
+                </div>
 
-          <div>
-            <label className="text-sm font-medium">Gender</label>
-            <select
-              value={gender}
-              onChange={(e) => setGender(e.target.value)}
-              className="w-full border rounded-lg p-2 mt-1 bg-white cursor-pointer"
-            >
-              <option value="">Select Gender</option>
-              <option value="Male">Male</option>
-              <option value="Female">Female</option>
-            </select>
-          </div>
+                <div>
+                  <label className="text-sm font-medium">Gender</label>
+                  <select
+                    value={gender}
+                    onChange={(e) => setGender(e.target.value)}
+                    className="w-full border rounded-lg p-2 mt-1 bg-white cursor-pointer"
+                  >
+                    <option value="">Select Gender</option>
+                    <option value="male">Male</option>
+                    <option value="female">Female</option>
+                  </select>
+                </div>
 
-          <div>
-            <label className="text-sm font-medium">Date of Birth</label>
-            <input
-              type="date"
-              value={dob}
-              onChange={(e) => setDob(e.target.value)}
-              className="w-full border rounded-lg p-2 mt-1"
-            />
-          </div>
+                <div>
+                  <label className="text-sm font-medium">Date of Birth</label>
+                  <input
+                    type="date"
+                    value={dob}
+                    onChange={(e) => setDob(e.target.value)}
+                    className="w-full border rounded-lg p-2 mt-1"
+                  />
+                </div>
 
-          <div>
-            <label className="text-sm font-medium">Height (cm)</label>
-            <input
-              type="number"
-              min="1"
-              value={height}
-              onChange={(e) => setHeight(e.target.value)}
-              className="w-full border rounded-lg p-2 mt-1"
-            />
-          </div>
-          <div>
-            <label className="text-sm font-medium">Weight (kg)</label>
-            <input
-              type="number"
-              min="1"
-              value={weight}
-              onChange={(e) => setWeight(e.target.value)}
-              className="w-full border rounded-lg p-2 mt-1"
-            />
-          </div>
-        </div>
+                <div>
+                  <label className="text-sm font-medium">Height (cm)</label>
+                  <input
+                    type="number"
+                    min="1"
+                    value={height}
+                    onChange={(e) => setHeight(e.target.value)}
+                    className="w-full border rounded-lg p-2 mt-1"
+                  />
+                </div>
+                <div>
+                  <label className="text-sm font-medium">Weight (kg)</label>
+                  <input
+                    type="number"
+                    min="1"
+                    value={weight}
+                    onChange={(e) => setWeight(e.target.value)}
+                    className="w-full border rounded-lg p-2 mt-1"
+                  />
+                </div>
+              </div>
 
         {/* All fields required */}
-        <div className="text-sm text-red-500 w-full max-w-3xl">* All fields are required.</div>
+        <div className="text-sm text-red-500 w-full max-w-3xl">
+          * All fields are required.
+        </div>
+
+        {message && (
+          <div className={`w-full max-w-3xl text-sm ${message.type === 'error' ? 'text-red-600' : 'text-green-600'}`}>
+            {message.text}
+          </div>
+        )}
 
         {/* Change Password Section */}
         <div className="w-full max-w-3xl">
@@ -169,7 +243,11 @@ const ProfileSettingsModal = ({ isOpen, onClose, userData }) => {
             className="w-full flex justify-between items-center bg-gray-100 rounded-lg p-2 font-semibold"
           >
             <span>Change Password</span>
-            {passwordVisible ? <ChevronUp size={18} /> : <ChevronDown size={18} />}
+            {passwordVisible ? (
+              <ChevronUp size={18} />
+            ) : (
+              <ChevronDown size={18} />
+            )}
           </button>
 
           {passwordVisible && (
@@ -189,7 +267,9 @@ const ProfileSettingsModal = ({ isOpen, onClose, userData }) => {
                   {showNewPass ? <EyeOff size={18} /> : <Eye size={18} />}
                 </div>
                 {newPass && newPass.length < 5 && (
-                  <p className="text-xs text-red-500 mt-1">Password must be at least 5 characters.</p>
+                  <p className="text-xs text-red-500 mt-1">
+                    Password must be at least 5 characters.
+                  </p>
                 )}
               </div>
 
@@ -208,7 +288,9 @@ const ProfileSettingsModal = ({ isOpen, onClose, userData }) => {
                   {showConfirmPass ? <EyeOff size={18} /> : <Eye size={18} />}
                 </div>
                 {confirmPass && confirmPass !== newPass && (
-                  <p className="text-xs text-red-500 mt-1">Passwords do not match.</p>
+                  <p className="text-xs text-red-500 mt-1">
+                    Passwords do not match.
+                  </p>
                 )}
               </div>
             </div>
@@ -218,12 +300,14 @@ const ProfileSettingsModal = ({ isOpen, onClose, userData }) => {
         {/* Save Button */}
         <button
           onClick={handleSave}
-          disabled={!canSave}
+          disabled={!canSave || saving}
           className={`px-6 py-2 rounded-lg text-white font-medium mt-2 ${
-            canSave ? "bg-blue-500 hover:bg-blue-600" : "bg-gray-300 cursor-not-allowed"
+            canSave && !saving
+              ? "bg-blue-500 hover:bg-blue-600"
+              : "bg-gray-300 cursor-not-allowed"
           }`}
         >
-          Save
+          {saving ? 'Saving...' : 'Save'}
         </button>
       </div>
     </AppModal>

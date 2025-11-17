@@ -1,8 +1,37 @@
 import { useState } from "react";
 import { Eye, EyeClosed } from "lucide-react";
+import { useNavigate } from 'react-router-dom';
+import axios from 'axios';
 
 const Signin = () => {
   const [showPassword, setShowPassword] = useState(false);
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState(null);
+  const navigate = useNavigate();
+
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    setError(null);
+    setLoading(true);
+    try {
+      const res = await axios.post(`${import.meta.env.VITE_BACKEND_BASE_URL}/api/auth/login`, { email, password });
+      const data = res.data;
+
+      if (data.accessToken) {
+        try { localStorage.setItem('authToken', data.accessToken); } catch (err) { console.error(err); }
+      }
+
+      navigate('/dashboard');
+    } catch (err) {
+      const msg = err?.response?.data?.message || 'Login failed';
+      setError(msg);
+      console.error(err);
+    } finally {
+      setLoading(false);
+    }
+  };
 
   return (
     <div
@@ -27,7 +56,7 @@ const Signin = () => {
             Sign in to track your mind, body, and progress
           </p>
 
-          <form className="space-y-4">
+          <form className="space-y-4" onSubmit={handleSubmit}>
             <div>
               <label htmlFor="email" className="block text-sm font-medium mb-1">
                 Email
@@ -35,8 +64,11 @@ const Signin = () => {
               <input
                 type="email"
                 id="email"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
                 placeholder="Enter your mail address"
                 className="w-full p-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                required
               />
             </div>
 
@@ -51,8 +83,11 @@ const Signin = () => {
                 <input
                   type={showPassword ? "text" : "password"}
                   id="password"
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
                   placeholder="Enter password"
                   className="w-full p-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 pr-10"
+                  required
                 />
                 <button
                   type="button"
@@ -78,19 +113,23 @@ const Signin = () => {
               </a>
             </div>
 
-            <button
-              type="submit"
-              className="w-full cursor-pointer text-white py-2 px-4 rounded-md transition duration-200"
-              style={{ backgroundColor: "rgba(74,144,226,1)" }}
-              onMouseEnter={(e) =>
-                (e.currentTarget.style.backgroundColor = "rgba(40,96,170,1)")
-              }
-              onMouseLeave={(e) =>
-                (e.currentTarget.style.backgroundColor = "rgba(74,144,226,1)")
-              }
-            >
-              Login
-            </button>
+            <div>
+              {error && <p className="text-sm text-red-600 mb-2">{error}</p>}
+              <button
+                type="submit"
+                disabled={loading}
+                className="w-full cursor-pointer text-white py-2 px-4 rounded-md transition duration-200 disabled:opacity-60"
+                style={{ backgroundColor: "rgba(74,144,226,1)" }}
+                onMouseEnter={(e) =>
+                  (e.currentTarget.style.backgroundColor = "rgba(40,96,170,1)")
+                }
+                onMouseLeave={(e) =>
+                  (e.currentTarget.style.backgroundColor = "rgba(74,144,226,1)")
+                }
+              >
+                {loading ? 'Logging in...' : 'Login'}
+              </button>
+            </div>
           </form>
 
           <div className="mt-6 text-center text-sm">

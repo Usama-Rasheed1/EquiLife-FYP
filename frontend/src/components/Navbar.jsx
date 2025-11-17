@@ -1,8 +1,11 @@
 import React, { useState, useRef, useEffect } from "react";
+import axios from "axios";
 import Notifications from "./Notifications";
 import ProfileSettingsModal from "./ProfileSettingsModal";
 
-const Navbar = ({ userName = "Rehman", activePage = "dashboard", onToggleSidebar }) => {
+const Navbar = ({ userName, activePage = "dashboard", onToggleSidebar }) => {
+  const [name, setName] = useState(userName);
+
   const getPageTitle = () => {
     switch (activePage) {
       case "community":
@@ -14,7 +17,7 @@ const Navbar = ({ userName = "Rehman", activePage = "dashboard", onToggleSidebar
       case "nutrition":
         return "Nutrition";
       default:
-        return `Welcome Back, ${userName}`;
+        return `Welcome Back, ${name}`;
     }
   };
 
@@ -32,6 +35,23 @@ const Navbar = ({ userName = "Rehman", activePage = "dashboard", onToggleSidebar
     };
     document.addEventListener("mousedown", handleClickOutside);
     return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, []);
+
+  // fetch current user profile on mount
+  useEffect(() => {
+    const loadProfile = async () => {
+      try {
+        const token = localStorage.getItem('authToken');
+        if (!token) return;
+        const url = `${import.meta.env.VITE_BACKEND_BASE_URL}/api/auth/profile`;
+        const res = await axios.get(url, { headers: { Authorization: `Bearer ${token}` } });
+        const u = res.data?.user;
+        if (u && u.fullName) setName(u.fullName);
+      } catch (err) {
+        // ignore
+      }
+    };
+    loadProfile();
   }, []);
 
   return (
@@ -85,7 +105,7 @@ const Navbar = ({ userName = "Rehman", activePage = "dashboard", onToggleSidebar
               className="h-6 w-6 lg:h-7 lg:w-7 rounded-full object-cover"
             />
             <span className="text-white text-sm lg:text-md ml-1 lg:ml-2 hidden sm:block">
-              {userName}
+              {name}
             </span>
           </div>
 
@@ -110,9 +130,12 @@ const Navbar = ({ userName = "Rehman", activePage = "dashboard", onToggleSidebar
       </nav>
 
       {/* Profile Settings Modal */}
-      <ProfileSettingsModal 
-        isOpen={settingsOpen} 
-        onClose={() => setSettingsOpen(false)} 
+      <ProfileSettingsModal
+        isOpen={settingsOpen}
+        onClose={() => setSettingsOpen(false)}
+        onSaved={(data) => {
+          if (data?.fullName) setName(data.fullName);
+        }}
       />
     </>
   );

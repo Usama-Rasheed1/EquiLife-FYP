@@ -1,7 +1,7 @@
 import React, { useEffect } from "react";
 import { X } from "lucide-react";
 
-const AppModal = ({ isOpen, onClose, title, children, widthClass }) => {
+const AppModal = ({ isOpen, onClose, title, children, widthClass, closeOnOutsideClick = true }) => {
   // Prevent background scroll when modal is open
   useEffect(() => {
     if (isOpen) {
@@ -27,10 +27,11 @@ const AppModal = ({ isOpen, onClose, title, children, widthClass }) => {
 
   return (
     <div className="fixed inset-0 z-[9999] flex items-center justify-center scrollbar-hide">
-      {/* Blurred backdrop */}
+      {/* Semi-opaque backdrop (replaced blur with opacity). If closeOnOutsideClick is false, clicking backdrop won't close the modal. */}
       <div
-        className="absolute inset-0 backdrop-blur-sm transition-opacity duration-300"
-        onClick={onClose}
+        className="absolute inset-0 bg-black/40 transition-opacity duration-300"
+        onClick={closeOnOutsideClick ? onClose : undefined}
+        aria-hidden
       />
 
       {/* Modal */}

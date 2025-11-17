@@ -107,7 +107,7 @@ const Assessment = () => {
             {assessments.map((assessment) => (
               <div
                 key={assessment.id}
-                className="bg-white/90 backdrop-blur-sm border border-gray-200 rounded-2xl shadow-sm hover:shadow-lg hover:-translate-y-1 transition-all p-8 flex flex-col"
+                className="bg-white/90 border border-gray-200 rounded-2xl shadow-sm hover:shadow-lg hover:-translate-y-1 transition-all p-8 flex flex-col"
               >
                 <div className="flex-grow">
                   <h3 className="text-lg font-semibold text-gray-900 mb-1">
