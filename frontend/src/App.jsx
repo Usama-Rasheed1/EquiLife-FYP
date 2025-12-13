@@ -8,6 +8,7 @@ import Contactus from "./pages/Contactus";
 import Dashboard from "./pages/Dashboard";
 import Assessment from "./pages/Assessment";
 import Fitness from "./pages/Fitness";
+import FitnessCalculations from "./pages/FitnessCalculations";
 import Nutrition from "./pages/Nutrition";
 import Community from './pages/Community';
 
@@ -25,6 +26,7 @@ function App() {
         <Route path="/dashboard" element={<Dashboard />} />
         <Route path="/dashboard/assessment" element={<Assessment />} />
         <Route path="/dashboard/fitness" element={<Fitness />} />
+  <Route path="/fitness/calculations" element={<FitnessCalculations />} />
         <Route path="/dashboard/nutrition" element={<Nutrition />} />
         <Route path="/dashboard/community" element={<Community />} />
 

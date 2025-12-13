@@ -18,7 +18,7 @@ const userSchema = new mongoose.Schema({
   weightKg: { type: Number },
 });
 
-// Hash password before saving
+// hash password automatically when created/changed
 userSchema.pre("save", async function (next) {
   if (!this.isModified("password")) return next();
   this.password = await bcrypt.hash(this.password, 10);

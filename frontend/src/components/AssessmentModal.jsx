@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from "react";
 import AppModal from "./AppModal";
 import { ChevronLeft, ChevronRight } from "lucide-react";
+import SuggestionModal from "./suggestionModal";
 
 // Assessment question data
 const assessmentData = {
@@ -73,6 +74,7 @@ const AssessmentModal = ({ isOpen, onClose, testId }) => {
   const [testData, setTestData] = useState(null);
   const [showResults, setShowResults] = useState(false);
   const [results, setResults] = useState(null);
+  const [suggestionsOpen, setSuggestionsOpen] = useState(false);
 
   useEffect(() => {
     if (testId && assessmentData[testId]) {
@@ -192,6 +194,31 @@ const AssessmentModal = ({ isOpen, onClose, testId }) => {
     setAnswers({});
   };
 
+  // Build a short suggestion paragraph based on the assessment and severity
+  const generateSuggestionText = (res) => {
+    if (!res) return "No suggestion available.";
+    const sev = (res.severity || "").toLowerCase();
+    if (testId === "gad7") {
+      if (sev.includes("minimal")) return "Your anxiety appears minimal. Keep practicing self-care, maintain routines, and monitor symptoms.";
+      if (sev.includes("mild")) return "Mild anxiety noted. Try relaxation techniques, regular exercise, and consider talking to a trusted person or a counselor.";
+      if (sev.includes("moderate")) return "Moderate anxiety observed. Consider reaching out to a primary care provider or counselor for further guidance and coping strategies.";
+      return "Severe anxiety detected. Please seek professional mental health support promptly, and contact emergency services if you feel unsafe.";
+    }
+    if (testId === "phq9") {
+      if (sev.includes("minimal")) return "Symptoms appear minimal. Maintain social connections, sleep hygiene, and healthy habits.";
+      if (sev.includes("mild")) return "Mild depressive symptoms. Consider self-help strategies, routine, and checking in with friends or family.";
+      if (sev.includes("moderate")) return "Moderate depression indication. Consider consulting a healthcare professional for assessment and treatment options.";
+      if (sev.includes("moderately severe")) return "Moderately severe depression. It's important to contact a mental health professional to discuss treatment and safety planning.";
+      return "Severe depression detected. Please seek professional help urgently and contact emergency services if you are at risk.";
+    }
+    if (testId === "ghq12") {
+      if (sev.includes("low")) return "Low psychological distress. Keep using healthy coping strategies and monitor changes.";
+      if (sev.includes("moderate")) return "Moderate distress. Consider stress management techniques and talking to a trusted person or counselor.";
+      return "High psychological distress. We recommend reaching out to a mental health professional to discuss next steps and support options.";
+    }
+    return "General suggestion: consider reaching out to a healthcare professional if symptoms persist or worsen.";
+  };
+
   if (!testData) return null;
 
   const totalQuestions = testData.questions.length;
@@ -243,7 +270,20 @@ const AssessmentModal = ({ isOpen, onClose, testId }) => {
             >
               Test Again
             </button>
+            <button
+              onClick={() => setSuggestionsOpen(true)}
+              className="flex-1 px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition-colors font-medium text-sm"
+            >
+              Suggestions
+            </button>
           </div>
+
+          <SuggestionModal
+            isOpen={suggestionsOpen}
+            onClose={() => setSuggestionsOpen(false)}
+            onTestAgain={handleTestAgain}
+            suggestion={generateSuggestionText(results)}
+          />
         </div>
       </AppModal>
     );

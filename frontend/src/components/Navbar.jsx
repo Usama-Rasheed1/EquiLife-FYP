@@ -121,7 +121,14 @@ const Navbar = ({ userName, activePage = "dashboard", onToggleSidebar }) => {
               >
                 Settings
               </button>
-              <button className="w-full text-left px-4 py-2 hover:bg-gray-100">
+              <button
+                className="w-full text-left px-4 py-2 hover:bg-gray-100"
+                onClick={() => {
+                  try { localStorage.removeItem('authToken'); } catch (e) {}
+                  // redirect to landing page
+                  window.location.href = '/';
+                }}
+              >
                 Logout
               </button>
             </div>

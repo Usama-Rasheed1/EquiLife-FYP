@@ -6,18 +6,17 @@ exports.register = async (req, res) => {
   const { fullName,email, password } = req.body;
 
   try {
-    // Check if user already exists
+    // reject duplicates
     const userExists = await User.findOne({ email });
-    if (userExists)
-      return res.status(400).json({ message: "Email already exists" });
+    if (userExists) return res.status(400).json({ message: "Email already exists" });
 
-    // Create user with hashed password
-    await User.create({ fullName, email, password });
-
-    res.status(201).json({ message: "User registered successfully" });
+    // create user (password hashed by model hook) and return token
+    const user = await User.create({ fullName, email, password });
+    const accessToken = generateAccessToken(user._id);
+    return res.status(201).json({ message: "User registered successfully", accessToken });
   } catch (err) {
     console.error("Registration Error:", err);
-    res.status(500).json({ message: "Error registering user" });
+    return res.status(500).json({ message: "Error registering user" });
   }
 };
 
@@ -26,15 +25,11 @@ exports.login = async (req, res) => {
   const { email, password } = req.body;
   try {
     const user = await User.findOne({ email });
-    if (!user || !(await bcrypt.compare(password, user.password))) {
-      return res.status(401).json({ message: "Invalid credentials" });
-    }
-
+    if (!user || !(await bcrypt.compare(password, user.password))) return res.status(401).json({ message: "Invalid credentials" });
     const accessToken = generateAccessToken(user._id);
-
-    res.json({ accessToken });
+    return res.json({ accessToken });
   } catch (err) {
-    res.status(500).json({ message: "Error logging in" });
+    return res.status(500).json({ message: "Error logging in" });
   }
 };
 
@@ -52,12 +47,8 @@ exports.updateProfile = async (req, res) => {
     const userId = req.user && req.user.id;
     if (!userId) return res.status(401).json({ message: "Unauthorized" });
 
-    const updated = await User.findByIdAndUpdate(userId, updates, {
-      new: true,
-      runValidators: true,
-    }).select("-password");
+    const updated = await User.findByIdAndUpdate(userId, updates, { new: true, runValidators: true }).select("-password");
     if (!updated) return res.status(404).json({ message: "User not found" });
-
     return res.json({ user: updated });
   } catch (err) {
     console.error("Update profile error:", err);

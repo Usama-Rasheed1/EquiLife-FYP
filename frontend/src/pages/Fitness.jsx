@@ -1,4 +1,5 @@
 import React, { useState } from "react";
+import { useNavigate } from "react-router-dom";
 import Layout from "../components/Layout";
 import CustomExerciseModal from "../components/CustomExerciseModal";
 import { PieChart, Pie, Cell, Legend, ResponsiveContainer } from "recharts";
@@ -11,6 +12,7 @@ const Fitness = () => {
   const [isCustomModalOpen, setIsCustomModalOpen] = useState(false);
   const [selectedDay, setSelectedDay] = useState("");
   const [gymAccordionOpen, setGymAccordionOpen] = useState(false);
+  const navigate = useNavigate();
 
   // Predefined continuous exercises (calories per minute)
   const continuousExercises = [
@@ -662,7 +664,7 @@ const Fitness = () => {
             </div>
           </div>
 
-          <button className="bg-blue-500 hover:bg-blue-600 text-white py-2 px-4 rounded-lg shadow transition-all self-center w-full mt-1 cursor-pointer text-sm sm:text-base">
+          <button onClick={() => navigate('/fitness/calculations')} className="bg-blue-500 hover:bg-blue-600 text-white py-2 px-4 rounded-lg shadow transition-all self-center w-full mt-1 cursor-pointer text-sm sm:text-base">
             Calculate All
           </button>
         </div>
