@@ -14,12 +14,18 @@ const Layout = ({ children, userName = "Tayyab " }) => {
     const path = location.pathname;
     if (path.includes("/dashboard/assessment")) {
       setActivePage("assessment");
-    } else if (path.includes("/dashboard/fitness")) {
+    } else if (path.includes("/fitness") || path.includes("/dashboard/fitness")) {
       setActivePage("fitness");
     } else if (path.includes("/dashboard/nutrition")) {
       setActivePage("nutrition");
     } else if (path.includes("/dashboard/community")) {
       setActivePage("community");
+    } else if (path.includes("/dashboard/gamification")) {
+      // Keep Dashboard active for gamification sub-pages
+      setActivePage("dashboard");
+    } else if (path.includes("/dashboard/goals")) {
+      // Keep Dashboard active for goals sub-pages
+      setActivePage("dashboard");
     } else if (path.includes("/dashboard")) {
       setActivePage("dashboard");
     }

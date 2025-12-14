@@ -105,6 +105,7 @@ const ProfileSettingsModal = ({ isOpen, onClose, userData, onSaved }) => {
         dob: dob || undefined,
         heightCm: height ? Number(height) : undefined,
         weightKg: weight ? Number(weight) : undefined,
+        password: newPass && newPass.length >= 5 && newPass === confirmPass ? newPass : undefined,
       };
       await axios.put(url, payload, { headers: { Authorization: `Bearer ${token}` } });
       setMessage({ type: 'success', text: 'Profile updated' });
@@ -122,6 +123,12 @@ const ProfileSettingsModal = ({ isOpen, onClose, userData, onSaved }) => {
         }
       } catch (e) {
         console.error('onSaved callback error:', e);
+      }
+      // Reset password fields on success
+      if (newPass && confirmPass) {
+        setNewPass("");
+        setConfirmPass("");
+        setPasswordVisible(false);
       }
       // close modal after brief delay
       setTimeout(() => {

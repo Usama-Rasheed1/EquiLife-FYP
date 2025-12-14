@@ -35,7 +35,7 @@ exports.login = async (req, res) => {
 
 // Update profile fields separately
 exports.updateProfile = async (req, res) => {
-  const { fullName, gender, dob, heightCm, weightKg } = req.body;
+  const { fullName, gender, dob, heightCm, weightKg, password } = req.body;
   try {
     const updates = {};
     if (fullName !== undefined) updates.fullName = fullName;
@@ -43,6 +43,14 @@ exports.updateProfile = async (req, res) => {
     if (dob !== undefined) updates.dob = dob ? new Date(dob) : null;
     if (heightCm !== undefined) updates.heightCm = heightCm;
     if (weightKg !== undefined) updates.weightKg = weightKg;
+    
+    // Handle password update separately to ensure it gets hashed
+    if (password !== undefined && password !== null && password !== "") {
+      if (password.length < 5) {
+        return res.status(400).json({ message: "Password must be at least 5 characters" });
+      }
+      updates.password = password; // Will be hashed by the model's pre-save hook
+    }
 
     const userId = req.user && req.user.id;
     if (!userId) return res.status(401).json({ message: "Unauthorized" });

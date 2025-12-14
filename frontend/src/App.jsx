@@ -11,6 +11,10 @@ import Fitness from "./pages/Fitness";
 import FitnessCalculations from "./pages/FitnessCalculations";
 import Nutrition from "./pages/Nutrition";
 import Community from './pages/Community';
+import Gamification from './pages/Gamification';
+import Goals from './pages/Goals';
+import GoalProgress from './pages/GoalProgress';
+import GoalRedirect from './components/GoalRedirect';
 
 
 
@@ -26,9 +30,14 @@ function App() {
         <Route path="/dashboard" element={<Dashboard />} />
         <Route path="/dashboard/assessment" element={<Assessment />} />
         <Route path="/dashboard/fitness" element={<Fitness />} />
-  <Route path="/fitness/calculations" element={<FitnessCalculations />} />
+        <Route path="/fitness/calculations" element={<FitnessCalculations />} />
         <Route path="/dashboard/nutrition" element={<Nutrition />} />
         <Route path="/dashboard/community" element={<Community />} />
+        <Route path="/dashboard/gamification" element={<Gamification />} />
+        <Route path="/dashboard/goals" element={<Goals />} />
+        <Route path="/dashboard/goals/:goalId" element={<GoalProgress />} />
+        {/* Redirect old /goals/:goalId paths to /dashboard/goals/:goalId */}
+        <Route path="/goals/:goalId" element={<GoalRedirect />} />
 
 
       </Routes>
