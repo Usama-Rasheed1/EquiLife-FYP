@@ -3,6 +3,7 @@ import Layout from "../components/Layout";
 import CustomFoodModal from "../components/CustomFoodModal";
 import { PieChart, Pie, Cell, Legend, ResponsiveContainer } from "recharts";
 import { Pencil, Trash2, Plus, Minus } from "lucide-react";
+import { getTodayDiet, saveTodayDiet } from '../services/nutritionService';
 
 
 const Nutrition = () => {
@@ -119,6 +120,11 @@ const Nutrition = () => {
     Dinner: [],
   });
 
+  const [totals, setTotals] = useState({ carbs:0, fats:0, protein:0 });
+  const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState('');
+
   // State for dropdown values
   const [dropdownValues, setDropdownValues] = useState({
     Breakfast: "",
@@ -126,42 +132,82 @@ const Nutrition = () => {
     Dinner: "",
   });
 
+  // helper: estimate macros (grams) from an array of items with calories and quantity
+  const computeMacrosFromItems = (items = []) => {
+    // If items include explicit macros per item, sum those. Otherwise fall back to heuristic by calories.
+    let carbs = 0, fats = 0, protein = 0;
+    let caloriesSum = 0;
+    for (const it of items) {
+      const qty = Number(it.quantity || 1);
+      if (it.macros) {
+        carbs += (Number(it.macros.carbs || 0) * qty);
+        fats += (Number(it.macros.fats || 0) * qty);
+        protein += (Number(it.macros.protein || 0) * qty);
+      } else if (it.calories) {
+        caloriesSum += Number(it.calories) * qty;
+      }
+    }
+    if (caloriesSum > 0 && carbs === 0 && fats === 0 && protein === 0) {
+      const ratios = { carbs: 0.5, fats: 0.3, protein: 0.2 };
+      carbs = Math.round((caloriesSum * ratios.carbs) / 4);
+      fats = Math.round((caloriesSum * ratios.fats) / 9);
+      protein = Math.round((caloriesSum * ratios.protein) / 4);
+    } else {
+      carbs = Math.round(carbs);
+      fats = Math.round(fats);
+      protein = Math.round(protein);
+    }
+    return { carbs, fats, protein };
+  };
+
   // ✅ Add new food item
   const handleAddFood = (meal, food) => {
     // Clear any editing state when adding new food
     setEditIndex(null);
     setEditFood(null);
-
+    // build the updated meals synchronously so we can save immediately
     setMeals((prev) => {
       const updated = { ...prev };
-      // Check if the food item already exists in this meal
-      const existingIndex = prev[meal].findIndex(
-        (item) => item.name === food.name
-      );
+      const existingIndex = prev[meal].findIndex((item) => item.name === food.name);
 
       if (existingIndex !== -1) {
-        // If item exists, increase its quantity instead of adding a new entry
         updated[meal] = prev[meal].map((item, index) =>
-          index === existingIndex
-            ? { ...item, quantity: item.quantity + 1 }
-            : item
+          index === existingIndex ? { ...item, quantity: item.quantity + 1 } : item
         );
       } else {
-        // If item doesn't exist, add it as a new entry
-        // Mark as custom if it's not in the predefined foodList
         const isCustomFood = !foodList.some((f) => f.name === food.name);
-        updated[meal] = [
-          ...prev[meal],
-          { ...food, quantity: 1, isCustom: isCustomFood },
-        ];
+        updated[meal] = [...prev[meal], { ...food, quantity: 1, isCustom: isCustomFood }];
       }
+
+      // Reset dropdown value immediately
+      setDropdownValues((dprev) => ({ ...dprev, [meal]: "" }));
+
+      // prepare payload: store meal items in description so backend persists them
+      (async () => {
+        try {
+          setSaving(true);
+          const breakfastMacros = computeMacrosFromItems(updated.Breakfast || []);
+          const lunchMacros = computeMacrosFromItems(updated.Lunch || []);
+          const dinnerMacros = computeMacrosFromItems(updated.Dinner || []);
+          const payload = {
+            breakfast: { description: JSON.stringify(updated.Breakfast || []), ...breakfastMacros },
+            lunch: { description: JSON.stringify(updated.Lunch || []), ...lunchMacros },
+            dinner: { description: JSON.stringify(updated.Dinner || []), ...dinnerMacros },
+          };
+          const saved = await saveTodayDiet(payload);
+          // if backend returns totals update local totals
+          if (saved && saved.totals) setTotals(saved.totals);
+          else setTotals({ carbs: breakfastMacros.carbs + lunchMacros.carbs + dinnerMacros.carbs, fats: breakfastMacros.fats + lunchMacros.fats + dinnerMacros.fats, protein: breakfastMacros.protein + lunchMacros.protein + dinnerMacros.protein });
+        } catch (err) {
+          console.error('Auto-save failed', err);
+          setError(err.message || 'Auto-save failed');
+        } finally {
+          setSaving(false);
+        }
+      })();
+
       return updated;
     });
-    // Reset dropdown to initial state
-    setDropdownValues((prev) => ({
-      ...prev,
-      [meal]: "",
-    }));
   };
 
   // ✅ Increase / decrease quantity (with debounced API call)
@@ -178,6 +224,30 @@ const Nutrition = () => {
       updated[meal] = prev[meal].map((item, i) =>
         i === index ? { ...item, quantity: newQty } : item
       );
+
+      // auto-save after updating quantities
+      (async () => {
+        try {
+          setSaving(true);
+          const breakfastMacros = computeMacrosFromItems(updated.Breakfast || []);
+          const lunchMacros = computeMacrosFromItems(updated.Lunch || []);
+          const dinnerMacros = computeMacrosFromItems(updated.Dinner || []);
+          const payload = {
+            breakfast: { description: JSON.stringify(updated.Breakfast || []), ...breakfastMacros },
+            lunch: { description: JSON.stringify(updated.Lunch || []), ...lunchMacros },
+            dinner: { description: JSON.stringify(updated.Dinner || []), ...dinnerMacros },
+          };
+          const saved = await saveTodayDiet(payload);
+          if (saved && saved.totals) setTotals(saved.totals);
+          else setTotals({ carbs: breakfastMacros.carbs + lunchMacros.carbs + dinnerMacros.carbs, fats: breakfastMacros.fats + lunchMacros.fats + dinnerMacros.fats, protein: breakfastMacros.protein + lunchMacros.protein + dinnerMacros.protein });
+        } catch (err) {
+          console.error('Auto-save failed', err);
+          setError(err.message || 'Auto-save failed');
+        } finally {
+          setSaving(false);
+        }
+      })();
+
       return updated;
     });
 
@@ -217,6 +287,30 @@ const Nutrition = () => {
     setMeals((prev) => {
       const updated = { ...prev };
       updated[meal] = prev[meal].filter((_, i) => i !== index);
+
+      // auto-save after delete
+      (async () => {
+        try {
+          setSaving(true);
+          const breakfastMacros = computeMacrosFromItems(updated.Breakfast || []);
+          const lunchMacros = computeMacrosFromItems(updated.Lunch || []);
+          const dinnerMacros = computeMacrosFromItems(updated.Dinner || []);
+          const payload = {
+            breakfast: { description: JSON.stringify(updated.Breakfast || []), ...breakfastMacros },
+            lunch: { description: JSON.stringify(updated.Lunch || []), ...lunchMacros },
+            dinner: { description: JSON.stringify(updated.Dinner || []), ...dinnerMacros },
+          };
+          const saved = await saveTodayDiet(payload);
+          if (saved && saved.totals) setTotals(saved.totals);
+          else setTotals({ carbs: breakfastMacros.carbs + lunchMacros.carbs + dinnerMacros.carbs, fats: breakfastMacros.fats + lunchMacros.fats + dinnerMacros.fats, protein: breakfastMacros.protein + lunchMacros.protein + dinnerMacros.protein });
+        } catch (err) {
+          console.error('Auto-save failed', err);
+          setError(err.message || 'Auto-save failed');
+        } finally {
+          setSaving(false);
+        }
+      })();
+
       return updated;
     });
 
@@ -289,6 +383,25 @@ const Nutrition = () => {
     });
     setEditIndex(null);
     setEditFood(null);
+
+    // persist edit
+    (async () => {
+      try {
+        setSaving(true);
+        const payload = {
+          breakfast: { description: JSON.stringify(meals.Breakfast || []), carbs: 0, fats: 0, protein: 0 },
+          lunch: { description: JSON.stringify(meals.Lunch || []), carbs: 0, fats: 0, protein: 0 },
+          dinner: { description: JSON.stringify(meals.Dinner || []), carbs: 0, fats: 0, protein: 0 },
+        };
+        const saved = await saveTodayDiet(payload);
+        if (saved && saved.totals) setTotals(saved.totals);
+      } catch (err) {
+        console.error('Auto-save failed', err);
+        setError(err.message || 'Auto-save failed');
+      } finally {
+        setSaving(false);
+      }
+    })();
   };
 
   // Helper function to get current calories for an item (accounting for editing state)
@@ -338,6 +451,44 @@ const Nutrition = () => {
   const displayChartData = macroSum > 0 ? chartData : [{ name: 'No Data', value: 1 }];
   const displayColors = macroSum > 0 ? COLORS : ['#E5E7EB'];
 
+
+  // load today's diet
+  useEffect(() => {
+    (async () => {
+      try {
+        const data = await getTodayDiet();
+        // map saved format (breakfast/lunch/dinner with macros) into meals list if present
+        if (data) {
+          const parseMeal = (meal) => {
+            if (!meal) return [];
+            // if description is stored as JSON array of items, parse it
+            try {
+              if (meal.description) {
+                const parsed = JSON.parse(meal.description);
+                if (Array.isArray(parsed)) return parsed.map(it => ({ ...it, quantity: it.quantity || 1 }));
+              }
+            } catch (err) {
+              // not JSON, ignore
+            }
+            // fallback: if meal has macros but no description return empty array
+            return [];
+          };
+
+          setMeals({
+            Breakfast: parseMeal(data.breakfast),
+            Lunch: parseMeal(data.lunch),
+            Dinner: parseMeal(data.dinner),
+          });
+
+          setTotals(data.totals || { carbs:0,fats:0,protein:0 });
+        }
+      } catch (err) {
+        console.error(err);
+      } finally {
+        setLoading(false);
+      }
+    })();
+  }, []);
 
   return (
     <Layout>
@@ -732,8 +883,27 @@ const Nutrition = () => {
             </div>
           </div>
 
-          <button className="bg-blue-500 hover:bg-blue-600 text-white py-2 px-4 rounded-lg shadow transition-all self-center w-full mt-1 cursor-pointer text-sm sm:text-base">
-            Calculate All
+          <button onClick={async () => {
+            setError(''); setSaving(true);
+            try {
+              // build payload from totals as simple custom macro entries
+              const payload = {
+                breakfast: { carbs: 0, fats:0, protein:0 },
+                lunch: { carbs:0, fats:0, protein:0 },
+                dinner: { carbs:0, fats:0, protein:0 }
+              };
+              // try to preserve any existing meal macro inputs by parsing meals state if custom
+              // fallback: distribute totals equally
+              payload.breakfast = { carbs: Math.round(totals.carbs/3), fats: Math.round(totals.fats/3), protein: Math.round(totals.protein/3) };
+              payload.lunch = { carbs: Math.round(totals.carbs/3), fats: Math.round(totals.fats/3), protein: Math.round(totals.protein/3) };
+              payload.dinner = { carbs: totals.carbs - payload.breakfast.carbs - payload.lunch.carbs, fats: totals.fats - payload.breakfast.fats - payload.lunch.fats, protein: totals.protein - payload.breakfast.protein - payload.lunch.protein };
+              const saved = await saveTodayDiet(payload);
+              setTotals(saved.totals || totals);
+            } catch (err) {
+              setError(err.message || 'Save failed');
+            } finally { setSaving(false); }
+          }} className="bg-blue-500 hover:bg-blue-600 text-white py-2 px-4 rounded-lg shadow transition-all self-center w-full mt-1 cursor-pointer text-sm sm:text-base">
+            {saving ? 'Saving...' : 'Save Diet'}
           </button>
         </div>
       </div>

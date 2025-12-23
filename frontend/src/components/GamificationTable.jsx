@@ -1,15 +1,21 @@
 import React from "react";
+import { useNavigate } from "react-router-dom";
 import { ArrowUpRight } from "lucide-react";
 
 const GamificationTable = () => {
+  const navigate = useNavigate();
   const data = [
     { rank: "01", name: "Muhammad Rehman", rewards: "289" },
     { rank: "02", name: "Muhammad Tayyab", rewards: "276" },
     { rank: "03", name: "Usama Rasheed", rewards: "249" },
   ];
 
+  const handleClick = () => {
+    navigate("/dashboard/gamification");
+  };
+
   return (
-  <div className="bg-white rounded-xl p-5 shadow-sm">
+  <div className="bg-white rounded-xl p-5 shadow-sm cursor-pointer hover:shadow-md transition-shadow" onClick={handleClick}>
       <div className="flex items-center justify-between mb-3">
         <h3 className="text-lg font-semibold text-gray-800">Gamification Feature</h3>
         <div className="w-7 h-7 bg-blue-50 rounded-full flex items-center justify-center">

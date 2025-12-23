@@ -8,5 +8,4 @@ authRouter.post('/login', login);
 authRouter.get('/profile', verifyToken, getProfile);
 authRouter.put('/profile', verifyToken, updateProfile);
 
-
 module.exports = authRouter;
