@@ -1,23 +1,117 @@
-import React, { useState } from "react";
+import React, { useState,useEffect, useRef, useMemo } from "react";
 import Layout from "../components/Layout";
 import CustomFoodModal from "../components/CustomFoodModal";
 import { PieChart, Pie, Cell, Legend, ResponsiveContainer } from "recharts";
 import { Pencil, Trash2, Plus, Minus } from "lucide-react";
 
+
 const Nutrition = () => {
+  const COLORS = ["#22c55e", "#3b82f6", "#facc15"];
+
+  const [foodList,setFoodList] = useState([]);
+  const [isLogging, setIsLogging] = useState(false);
+  const [loggingError, setLoggingError] = useState('');
+  // Debouncing refs for quantity changes and deletes
+  const debounceTimeouts = useRef({});
+  useEffect(() => {
+    // Fetch food list from backend 
+    const fetchFoodList = async () => {
+      try {
+        const respPre = await fetch(`${import.meta.env.VITE_BACKEND_BASE_URL}/api/foods/predefined`);
+        const predefined = await respPre.json();
+
+        // Try fetch user custom foods if logged in
+        let custom = [];
+        try {
+          const token = localStorage.getItem('authToken');
+          if (token) {
+            const respCustom = await fetch(`${import.meta.env.VITE_BACKEND_BASE_URL}/api/foods/custom`, {
+              headers: { Authorization: `Bearer ${token}` },
+            });
+            if (respCustom.ok) custom = await respCustom.json();
+          }
+        } catch (err) {
+          console.warn('Could not fetch custom foods', err);
+        }
+
+        const combined = [...(predefined || []), ...(custom || [])];
+        setFoodList(combined);
+        console.log("Fetched food list:", combined);
+      } catch (error) {
+        console.error("Error fetching food list:", error);}};
+    fetchFoodList();
+
+    // Fetch today's meal log from backend
+    const fetchTodayMeals = async () => {
+      try {
+        const token = localStorage.getItem('authToken');
+        if (!token) return;
+        const today = new Date().toISOString().slice(0, 10); // YYYY-MM-DD
+        const response = await fetch(
+          `${import.meta.env.VITE_BACKEND_BASE_URL}/api/meals/daily?date=${today}`,
+          {
+            headers: {
+              Authorization: `Bearer ${token}`,
+            },
+          }
+        );
+        const result = await response.json();
+        if (result.meals) {
+          // Enrich meals with food names by looking up foodId in the Food collection
+          // Fetch predefined and user custom foods to build a lookup map
+          const predefinedResp = await fetch(`${import.meta.env.VITE_BACKEND_BASE_URL}/api/foods/predefined`);
+          const predefinedFoods = await predefinedResp.json();
+
+          let customFoods = [];
+          try {
+            const customResp = await fetch(`${import.meta.env.VITE_BACKEND_BASE_URL}/api/foods/custom`, {
+              headers: { Authorization: `Bearer ${token}` },
+            });
+            if (customResp.ok) customFoods = await customResp.json();
+          } catch (err) {
+            // ignore if custom fetch fails
+            console.warn('Could not fetch custom foods:', err);
+          }
+
+          const allFoods = [...(predefinedFoods || []), ...(customFoods || [])];
+          // Create a map of foodId -> food for quick lookup
+          const foodMap = {};
+          allFoods.forEach((food) => {
+            if (food && (food._id || food.id)) foodMap[food._id || food.id] = food;
+          });
+
+          // Enrich each meal item with the food name
+          const enrichedMeals = {
+            Breakfast: (result.meals.Breakfast || []).map(item => ({
+              ...item,
+              name: foodMap[item.foodId]?.name || 'Unknown Food'
+            })),
+            Lunch: (result.meals.Lunch || []).map(item => ({
+              ...item,
+              name: foodMap[item.foodId]?.name || 'Unknown Food'
+            })),
+            Dinner: (result.meals.Dinner || []).map(item => ({
+              ...item,
+              name: foodMap[item.foodId]?.name || 'Unknown Food'
+            })),
+          };
+          
+          setMeals(enrichedMeals);
+          console.log('Fetched today meals:', enrichedMeals);
+        }
+      } catch (error) {
+        console.error('Error fetching today meals:', error);
+      }
+    };
+    fetchTodayMeals();
+  }, []);
   const [editIndex, setEditIndex] = useState(null);
   const [editValue, setEditValue] = useState("");
   const [editFood, setEditFood] = useState(null);
   const [isCustomModalOpen, setIsCustomModalOpen] = useState(false);
   const [selectedMeal, setSelectedMeal] = useState("");
 
-  const foodList = [
-    { name: "Egg", calories: 78, grams: 50 },
-    { name: "Bread Slice", calories: 66, grams: 25 },
-    { name: "Apple", calories: 95, grams: 100 },
-    { name: "Rice (1 cup)", calories: 200, grams: 150 },
-    { name: "Grilled Chicken", calories: 165, grams: 100 },
-  ];
+  
 
   const [meals, setMeals] = useState({
     Breakfast: [],
@@ -70,39 +164,95 @@ const Nutrition = () => {
     }));
   };
 
-  // ✅ Increase / decrease quantity
+  // ✅ Increase / decrease quantity (with debounced API call)
   const handleQuantityChange = (meal, index, type) => {
+    const currentItem = meals[meal][index];
+    if (!currentItem) return;
+
+    const currentQty = currentItem.quantity || 1;
+    const newQty = type === 'inc' ? currentQty + 1 : currentQty > 1 ? currentQty - 1 : 1;
+
+    // Update UI immediately
     setMeals((prev) => {
       const updated = { ...prev };
       updated[meal] = prev[meal].map((item, i) =>
-        i === index
-          ? {
-              ...item,
-              quantity:
-                type === "inc"
-                  ? item.quantity + 1
-                  : item.quantity > 1
-                  ? item.quantity - 1
-                  : 1,
-            }
-          : item
+        i === index ? { ...item, quantity: newQty } : item
       );
       return updated;
     });
+
+    const debounceKey = `qty-${meal}-${index}`;
+    if (debounceTimeouts.current[debounceKey]) clearTimeout(debounceTimeouts.current[debounceKey]);
+
+    // Schedule API update after user stops clicking for 500ms
+    debounceTimeouts.current[debounceKey] = setTimeout(async () => {
+      try {
+        const token = localStorage.getItem('authToken');
+        // require meal item id from server snapshot
+        const item = meals[meal][index];
+        const mealItemId = item && (item._id || item.id);
+        if (!mealItemId) return; // nothing to update on server
+
+        const resp = await fetch(`${import.meta.env.VITE_BACKEND_BASE_URL}/api/meals/${mealItemId}`, {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+          body: JSON.stringify({ quantity: newQty }),
+        });
+        if (!resp.ok) {
+          const err = await resp.json().catch(() => ({}));
+          throw new Error(err.message || 'Failed to update quantity');
+        }
+      } catch (err) {
+        console.error('Error updating quantity:', err);
+      }
+    }, 500);
   };
 
-  // ✅ Delete item
+  // ✅ Delete item (with debounced API call)
   const handleDelete = (meal, index) => {
+    const item = meals[meal][index];
+    if (!item) return;
+
+    // Update UI immediately
     setMeals((prev) => {
       const updated = { ...prev };
       updated[meal] = prev[meal].filter((_, i) => i !== index);
       return updated;
     });
+
+    const debounceKey = `del-${meal}-${index}`;
+    if (debounceTimeouts.current[debounceKey]) clearTimeout(debounceTimeouts.current[debounceKey]);
+
+    debounceTimeouts.current[debounceKey] = setTimeout(async () => {
+      try {
+        const token = localStorage.getItem('authToken');
+        const mealItemId = item && (item._id || item.id);
+        if (!mealItemId) return;
+
+        const resp = await fetch(`${import.meta.env.VITE_BACKEND_BASE_URL}/api/meals/${mealItemId}`, {
+          method: 'DELETE',
+          headers: { Authorization: `Bearer ${token}` },
+        });
+        if (!resp.ok) {
+          const err = await resp.json().catch(() => ({}));
+          throw new Error(err.message || 'Failed to delete meal');
+        }
+      } catch (err) {
+        console.error('Error deleting meal:', err);
+      }
+    }, 300);
   };
 
   // ✅ Edit item
   const handleEdit = (meal, index) => {
     const currentItem = meals[meal][index];
+    console.log("Editing item:", currentItem);
+    // cancel pending debounced operations for this item
+    const debounceKeyQty = `qty-${meal}-${index}`;
+    const debounceKeyDel = `del-${meal}-${index}`;
+    if (debounceTimeouts.current[debounceKeyQty]) clearTimeout(debounceTimeouts.current[debounceKeyQty]);
+    if (debounceTimeouts.current[debounceKeyDel]) clearTimeout(debounceTimeouts.current[debounceKeyDel]);
+
     setEditIndex({ meal, index });
     setEditValue(currentItem.name);
     setEditFood(currentItem);
@@ -141,14 +291,6 @@ const Nutrition = () => {
     setEditFood(null);
   };
 
-  const chartData = [
-    { name: "Protein", value: 30 },
-    { name: "Carbs", value: 50 },
-    { name: "Fats", value: 20 },
-  ];
-
-  const COLORS = ["#22c55e", "#3b82f6", "#facc15"];
-
   // Helper function to get current calories for an item (accounting for editing state)
   const getCurrentItemCalories = (item, meal, index) => {
     if (editIndex?.meal === meal && editIndex?.index === index && editFood) {
@@ -157,12 +299,45 @@ const Nutrition = () => {
     return item.calories * item.quantity;
   };
 
-  const totalCalories = Object.keys(meals).reduce((total, meal) => {
-    const mealTotal = meals[meal].reduce((mealSum, item, index) => {
-      return mealSum + getCurrentItemCalories(item, meal, index);
+  const totalCalories = useMemo(() => {
+    return Object.keys(meals).reduce((total, meal) => {
+      const mealTotal = meals[meal].reduce((mealSum, item, index) => {
+        return mealSum + getCurrentItemCalories(item, meal, index);
+      }, 0);
+      return total + mealTotal;
     }, 0);
-    return total + mealTotal;
-  }, 0);
+  }, [meals, editIndex, editFood]);
+
+  // Calculate macro totals from meals (memoized)
+  const { totalProtein, totalCarbs, totalFats } = useMemo(() => {
+    const acc = { totalProtein: 0, totalCarbs: 0, totalFats: 0 };
+    Object.keys(meals).forEach((meal) => {
+      meals[meal].forEach((item, index) => {
+        const qty = item.quantity || 1;
+        const protein = editIndex?.meal === meal && editIndex?.index === index && editFood ? editFood.protein : item.protein || 0;
+        const carbs = editIndex?.meal === meal && editIndex?.index === index && editFood ? editFood.carbs : item.carbs || 0;
+        const fat = editIndex?.meal === meal && editIndex?.index === index && editFood ? editFood.fat : item.fat || 0;
+
+        acc.totalProtein += protein * qty;
+        acc.totalCarbs += carbs * qty;
+        acc.totalFats += fat * qty;
+      });
+    });
+    return acc;
+  }, [meals, editIndex, editFood]);
+
+  const chartData = useMemo(() => [
+    { name: "Protein", value: Math.max(0, Math.round(totalProtein)) },
+    { name: "Carbs", value: Math.max(0, Math.round(totalCarbs)) },
+    { name: "Fats", value: Math.max(0, Math.round(totalFats)) },
+  ], [totalProtein, totalCarbs, totalFats]);
+
+  // If all macro values are zero, provide a safe fallback so the Pie chart
+  // renders predictably (Recharts may render nothing or behave oddly with all zeros).
+  const macroSum = chartData.reduce((s, e) => s + (Number(e.value) || 0), 0);
+  const displayChartData = macroSum > 0 ? chartData : [{ name: 'No Data', value: 1 }];
+  const displayColors = macroSum > 0 ? COLORS : ['#E5E7EB'];
+
 
   return (
     <Layout>
@@ -180,10 +355,10 @@ const Nutrition = () => {
                 <label className="block text-sm font-medium mb-1 text-gray-700">
                   {meal}
                 </label>
-                <select
-                  className="w-full border border-gray-300 rounded-lg px-3 py-2 cursor-pointer text-sm sm:text-base focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                <select 
+                  className={`w-full border border-gray-300 rounded-lg px-3 py-2 cursor-pointer text-sm sm:text-base focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent text-ellipsis `}
                   value={dropdownValues[meal]}
-                  onChange={(e) => {
+                  onChange={async (e) => {
                     const selectedValue = e.target.value;
                     setDropdownValues((prev) => ({
                       ...prev,
@@ -193,11 +368,132 @@ const Nutrition = () => {
                     if (selectedValue === "Custom") {
                       setSelectedMeal(meal);
                       setIsCustomModalOpen(true);
-                    } else {
-                      const food = foodList.find(
-                        (f) => f.name === selectedValue
-                      );
-                      if (food) handleAddFood(meal, food);
+                    } else if (selectedValue) {
+                      // Log meal to backend and show loader
+                      setLoggingError('');
+                      setIsLogging(true);
+                      try {
+                        const food = foodList.find((f) => f.name === selectedValue);
+                        if (!food) throw new Error('Selected food not found');
+
+                        const token = localStorage.getItem('authToken');
+                        const today = new Date().toISOString().slice(0, 10); // YYYY-MM-DD
+
+                        // Check if the same food already exists in this meal section
+                        const existingIndex = meals[meal].findIndex((it) => {
+                          // prefer matching by foodId if present, otherwise by name
+                          return (
+                            (it.foodId && (it.foodId === food._id || it.foodId === food.id)) ||
+                            (it._id && (it._id === food._id || it._id === food.id)) ||
+                            it.name === food.name
+                          );
+                        });
+
+                        if (existingIndex !== -1) {
+                          // Increment existing quantity instead of creating a new entry
+                          const existing = meals[meal][existingIndex];
+                          const newQty = (existing.quantity || 1) + 1;
+
+                          // Optimistic UI update
+                          setMeals((prev) => {
+                            const updated = { ...prev };
+                            updated[meal] = prev[meal].map((item, i) =>
+                              i === existingIndex ? { ...item, quantity: newQty } : item
+                            );
+                            return updated;
+                          });
+
+                          // If the existing item has a server id, update it on server
+                          const mealItemId = existing._id || existing.id;
+                          if (mealItemId) {
+                            const resp = await fetch(`${import.meta.env.VITE_BACKEND_BASE_URL}/api/meals/${mealItemId}`, {
+                              method: 'PUT',
+                              headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+                              body: JSON.stringify({ quantity: newQty }),
+                            });
+                            if (!resp.ok) {
+                              const err = await resp.json().catch(() => ({}));
+                              throw new Error(err.message || 'Failed to update quantity');
+                            }
+                          } else {
+                            // Fallback: create a new meal item on server and replace existing entry with server snapshot
+                            const resp = await fetch(
+                              `${import.meta.env.VITE_BACKEND_BASE_URL}/api/meals/log`,
+                              {
+                                method: 'POST',
+                                headers: {
+                                  'Content-Type': 'application/json',
+                                  Authorization: `Bearer ${token}`,
+                                },
+                                body: JSON.stringify({
+                                  date: today,
+                                  mealType: meal,
+                                  foodId: food._id,
+                                  quantity: newQty,
+                                }),
+                              }
+                            );
+                            const result = await resp.json();
+                            if (!resp.ok) throw new Error(result.message || 'Failed to log meal');
+                            const mealItem = result.mealItem || { ...food, quantity: newQty };
+
+                            // Ensure name present
+                            if (!mealItem.name) mealItem.name = food.name;
+
+                            // Replace the optimistic entry with server snapshot
+                            setMeals((prev) => {
+                              const updated = { ...prev };
+                              updated[meal] = prev[meal].map((item, i) =>
+                                i === existingIndex ? mealItem : item
+                              );
+                              return updated;
+                            });
+                          }
+                        } else {
+                          // No existing entry in this meal — create a new meal item
+                          const resp = await fetch(
+                            `${import.meta.env.VITE_BACKEND_BASE_URL}/api/meals/log`,
+                            {
+                              method: 'POST',
+                              headers: {
+                                'Content-Type': 'application/json',
+                                Authorization: `Bearer ${token}`,
+                              },
+                              body: JSON.stringify({
+                                date: today,
+                                mealType: meal,
+                                foodId: food._id,
+                                quantity: 1,
+                              }),
+                            }
+                          );
+                          const result = await resp.json();
+                          if (!resp.ok) throw new Error(result.message || 'Failed to log meal');
+
+                          // Prefer server-returned mealItem snapshot; otherwise, construct from food
+                          const mealItem = result.mealItem || result.data || {
+                            ...food,
+                            quantity: 1,
+                          };
+
+                          // Ensure mealItem has the food name for display
+                          if (!mealItem.name) {
+                            mealItem.name = food.name;
+                          }
+
+                          // Add to UI
+                          setMeals((prev) => ({
+                            ...prev,
+                            [meal]: [...prev[meal], mealItem],
+                          }));
+                        }
+                      } catch (err) {
+                        console.error('Error logging/updating meal:', err);
+                        setLoggingError(err.message || 'Error logging meal');
+                      } finally {
+                        setIsLogging(false);
+                        setDropdownValues((prev) => ({ ...prev, [meal]: '' }));
+                      }
                     }
                   }}
                 >
@@ -211,6 +507,24 @@ const Nutrition = () => {
                 </select>
               </div>
             ))}
+          </div>
+          {/* Minimal macro summary (compact) */}
+          <div className="w-full flex items-center justify-between text-xs sm:text-sm text-gray-700 px-2">
+            <div className="flex items-center gap-2">
+              <span className="w-2 h-2 rounded-full" style={{ background: COLORS[0] }} />
+              <span className="text-gray-500 hidden sm:inline">Protein</span>
+              <span className="font-semibold ml-1">{Math.max(0, Math.round(totalProtein))}g</span>
+            </div>
+            <div className="flex items-center gap-2">
+              <span className="w-2 h-2 rounded-full" style={{ background: COLORS[1] }} />
+              <span className="text-gray-500 hidden sm:inline">Carbs</span>
+              <span className="font-semibold ml-1">{Math.max(0, Math.round(totalCarbs))}g</span>
+            </div>
+            <div className="flex items-center gap-2">
+              <span className="w-2 h-2 rounded-full" style={{ background: COLORS[2] }} />
+              <span className="text-gray-500 hidden sm:inline">Fats</span>
+              <span className="font-semibold ml-1">{Math.max(0, Math.round(totalFats))}g</span>
+            </div>
           </div>
 
           {/* All Details Section */}
@@ -244,7 +558,7 @@ const Nutrition = () => {
                           {editIndex?.meal === meal &&
                           editIndex?.index === index ? (
                             <select
-                              className="w-full border border-gray-300 rounded-md px-2 py-1 text-xs sm:text-sm cursor-pointer focus:outline-none focus:ring-1 focus:ring-blue-500"
+                              className={`w-full border border-gray-300 rounded-md px-2 py-1 text-xs sm:text-sm cursor-pointer focus:outline-none focus:ring-1 focus:ring-blue-500`}
                               value={editValue}
                               onChange={(e) => {
                                 const newFoodName = e.target.value;
@@ -293,15 +607,16 @@ const Nutrition = () => {
                               <p className="font-medium text-sm sm:text-base">
                                 {item.name} ({item.quantity}x)
                               </p>
-                              {item.isCustom && (
+                              {/* {item.isCustom && (
                                 <span className="inline-flex items-center px-1.5 sm:px-2 py-0.5 sm:py-1 rounded-full text-xs font-medium bg-gradient-to-r from-purple-500 to-pink-500 text-white shadow-sm">
                                   Custom
                                 </span>
-                              )}
+                              )} */}
                             </div>
                           )}
                           <p className="text-xs sm:text-sm text-gray-500 mt-1">
                             {getCurrentItemCalories(item, meal, index)} kcal
+                           
                           </p>
                         </div>
 
@@ -343,8 +658,8 @@ const Nutrition = () => {
                               onClick={() => handleEdit(meal, index)}
                               className="text-blue-500 hover:text-blue-600 cursor-pointer flex-shrink-0"
                             >
-                              <Pencil size={14} className="sm:hidden" />
-                              <Pencil size={16} className="hidden sm:block" />
+                              {/* <Pencil size={14} className="sm:hidden" /> */}
+                              {/* <Pencil size={16} className="hidden sm:block" /> */}
                             </button>
                           )}
 
@@ -385,11 +700,11 @@ const Nutrition = () => {
             <h4 className="text-base sm:text-lg font-semibold mb-2 sm:mb-3 text-center">
               Food Intake
             </h4>
-            <div className="w-full h-40 sm:h-48 md:h-38 flex justify-center">
+            <div className="w-full h-40 sm:h-48 md:h-38 flex justify-center relative">
               <ResponsiveContainer width="100%" height="100%">
                 <PieChart>
                   <Pie
-                    data={chartData}
+                    data={displayChartData}
                     cx="50%"
                     cy="50%"
                     innerRadius="55%"
@@ -397,8 +712,8 @@ const Nutrition = () => {
                     paddingAngle={5}
                     dataKey="value"
                   >
-                    {chartData.map((entry, index) => (
-                      <Cell key={`cell-${index}`} fill={COLORS[index]} />
+                    {displayChartData.map((entry, index) => (
+                      <Cell key={`cell-${index}`} fill={displayColors[index % displayColors.length]} />
                     ))}
                   </Pie>
                   <Legend
@@ -408,6 +723,12 @@ const Nutrition = () => {
                   />
                 </PieChart>
               </ResponsiveContainer>
+
+              {macroSum === 0 && (
+                <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
+                  <span className="text-sm text-gray-500">No macros yet</span>
+                </div>
+              )}
             </div>
           </div>
 
@@ -416,6 +737,21 @@ const Nutrition = () => {
           </button>
         </div>
       </div>
+      {/* Logging overlay */}
+      {isLogging && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-30">
+          <div className="bg-white rounded-lg px-6 py-4 shadow">
+            <p className="font-medium">Logging meal...</p>
+          </div>
+        </div>
+      )}
+
+      {/* Show logging error if any */}
+      {loggingError && (
+        <div className="fixed bottom-4 right-4 z-50 bg-red-50 border border-red-200 text-red-700 px-4 py-2 rounded">
+          {loggingError}
+        </div>
+      )}
 
       {/* Custom Food Modal */}
       <CustomFoodModal
@@ -428,6 +764,7 @@ const Nutrition = () => {
             [selectedMeal]: "",
           }));
         }}
+        mealType={selectedMeal}
         onAddFood={(food) => handleAddFood(selectedMeal, food)}
       />
     </Layout>

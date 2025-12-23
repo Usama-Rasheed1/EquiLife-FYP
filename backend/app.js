@@ -24,4 +24,18 @@ app.use(cookieParser());
 const authRoutes = require('./routes/authRoutes');
 app.use('/api/auth', authRoutes);
 
+// Mount new EquiLife routes
+const workoutRoutes = require('./routes/workoutRoutes');
+const newMealRoutes = require('./routes/meal.routes');
+const foodRoutes = require('./routes/food.routes');
+
+// Foods endpoints (predefined + user custom)
+app.use('/api/foods', foodRoutes);
+
+// Meal logging and retrieval (snapshot-based)
+app.use('/api/meals', newMealRoutes);
+
+// Existing workout routes kept as-is
+app.use('/api/workouts', workoutRoutes);
+
 module.exports = app;

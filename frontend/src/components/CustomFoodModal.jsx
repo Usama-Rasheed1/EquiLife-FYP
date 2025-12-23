@@ -1,7 +1,8 @@
 import React, { useState } from "react";
 import AppModal from "./AppModal";
 
-const CustomFoodModal = ({ isOpen, onClose, onAddFood }) => {
+// mealType: string (Breakfast|Lunch|Dinner|Snacks) - indicates which meal this custom food will be logged to
+const CustomFoodModal = ({ isOpen, onClose, onAddFood, mealType }) => {
   const [formData, setFormData] = useState({
     name: "",
     calories: "",
@@ -11,6 +12,8 @@ const CustomFoodModal = ({ isOpen, onClose, onAddFood }) => {
   });
 
   const [errors, setErrors] = useState({});
+  const [saving, setSaving] = useState(false);
+  const [apiMessage, setApiMessage] = useState('');
 
   const handleInputChange = (e) => {
     const { name, value } = e.target;
@@ -67,13 +70,60 @@ const CustomFoodModal = ({ isOpen, onClose, onAddFood }) => {
         calories: parseInt(formData.calories),
         protein: formData.protein ? parseFloat(formData.protein) : 0,
         carbs: formData.carbs ? parseFloat(formData.carbs) : 0,
-        fats: formData.fats ? parseFloat(formData.fats) : 0,
+        fat: formData.fats ? parseFloat(formData.fats) : 0,
         grams: 100, // Default grams for custom food
       };
-      
-      onAddFood(foodObject);
-      handleClear();
-      onClose();
+
+      // Create custom food in backend and log it to the selected meal
+      (async () => {
+        setSaving(true);
+        setApiMessage('');
+        try {
+          const token = localStorage.getItem('authToken');
+          if (!token) throw new Error('Not authenticated');
+
+          // 1) Create custom food
+          const createResp = await fetch(`${import.meta.env.VITE_BACKEND_BASE_URL}/api/foods/custom`, {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              Authorization: `Bearer ${token}`,
+            },
+            body: JSON.stringify(foodObject),
+          });
+          const created = await createResp.json();
+          if (!createResp.ok) throw new Error(created.message || 'Failed to create custom food');
+
+          // 2) Log meal for today to the selected mealType
+          const today = new Date().toISOString().slice(0,10);
+          const logResp = await fetch(`${import.meta.env.VITE_BACKEND_BASE_URL}/api/meals/log`, {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              Authorization: `Bearer ${token}`,
+            },
+            body: JSON.stringify({ date: today, mealType: mealType || 'Breakfast', foodId: created._id || created.id, quantity: 1 }),
+          });
+          const logged = await logResp.json();
+          if (!logResp.ok) throw new Error(logged.message || 'Failed to log custom food');
+
+          // Prefer returned mealItem snapshot, but ensure it has name for UI
+          const mealItem = logged.mealItem || logged.data || { ...created, quantity: 1 };
+          if (!mealItem.name) mealItem.name = created.name;
+
+          // Notify parent to add to UI
+          if (typeof onAddFood === 'function') onAddFood(mealItem);
+
+          setApiMessage('Added');
+          handleClear();
+          onClose();
+        } catch (err) {
+          console.error('CustomFoodModal add error', err);
+          setApiMessage(err.message || 'Error');
+        } finally {
+          setSaving(false);
+        }
+      })();
     }
   };
 
@@ -216,15 +266,17 @@ const CustomFoodModal = ({ isOpen, onClose, onAddFood }) => {
         <div className="flex flex-col sm:flex-row gap-2 sm:gap-3 mt-4 sm:mt-6">
           <button
             onClick={handleClear}
-            className="flex-1 px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors"
+            disabled={saving}
+            className="flex-1 px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors disabled:opacity-50"
           >
             Clear
           </button>
           <button
             onClick={handleAdd}
-            className="flex-1 px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition-colors"
+            disabled={saving}
+            className="flex-1 px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition-colors disabled:opacity-50"
           >
-            Add
+            {saving ? 'Adding...' : 'Add'}
           </button>
         </div>
     </AppModal>
