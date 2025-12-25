@@ -16,7 +16,7 @@ const userSchema = new mongoose.Schema({
   dob: { type: Date },
   heightCm: { type: Number },
   weightKg: { type: Number },
-});
+}, { timestamps: true });
 
 // hash password automatically when created/changed
 userSchema.pre("save", async function (next) {

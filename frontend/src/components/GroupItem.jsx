@@ -6,9 +6,10 @@ const GroupItem = ({ avatar, name, message, starred }) => {
       {/* Left: Avatar + Details */}
       <div className="flex items-start gap-2">
         <img
-          src={avatar || "https://avatar.iran.liara.run/public/13"}
+          src={avatar || '/user.jpg'}
           alt={`${name} avatar`}
           className="w-10 h-10 rounded-full object-cover"
+          onError={(e) => { e.target.src = '/user.jpg'; }}
         />
         <div className="pl-2">
           <h3 className="font-medium">{name}</h3>

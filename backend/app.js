@@ -21,6 +21,7 @@ app.use('/api/auth', authRoutes);
 const nutritionRoutes = require('./routes/nutritionRoutes');
 app.use('/api/nutrition', nutritionRoutes);
 
+<<<<<<< HEAD
 // Mount new EquiLife routes
 const workoutRoutes = require('./routes/workoutRoutes');
 const newMealRoutes = require('./routes/meal.routes');
@@ -34,5 +35,12 @@ app.use('/api/meals', newMealRoutes);
 
 // Existing workout routes kept as-is
 app.use('/api/workouts', workoutRoutes);
+=======
+// Chat / community routes
+const groupRoutes = require('./routes/groupRoutes');
+const messageRoutes = require('./routes/messageRoutes');
+app.use('/api/groups', groupRoutes);
+app.use('/api/messages', messageRoutes);
+>>>>>>> 96d94d2 (Community groups and Socket io)
 
 module.exports = app;
