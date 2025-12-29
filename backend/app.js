@@ -31,6 +31,9 @@ const newMealRoutes = require('./routes/meal.routes');
 const foodRoutes = require('./routes/food.routes');
 const fitnessRoutes = require('./routes/fitnessRoutes');
 
+// Gamification routes
+const gamificationRoutes = require('./routes/gamificationRoutes');
+
 // Foods endpoints (predefined + user custom)
 app.use('/api/foods', foodRoutes);
 
@@ -43,6 +46,7 @@ app.use('/api/fitness', fitnessRoutes);
 // Existing workout routes kept as-is
 app.use('/api/workouts', workoutRoutes);
 
+<<<<<<< HEAD
 // Debug: inspect socket room members (dev only)
 try {
 	const { getRoomMembers } = require('./socket');
@@ -54,5 +58,9 @@ try {
 } catch (err) {
 	console.warn('Socket debug route not available:', err.message);
 }
+=======
+// mount gamification API
+app.use('/api/gamification', gamificationRoutes);
+>>>>>>> 0c8279a60146bbbdb23701426b7bda820f2f3b5b
 
 module.exports = app;
