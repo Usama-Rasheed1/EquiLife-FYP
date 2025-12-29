@@ -4,6 +4,7 @@ const mongoose = require('mongoose');
 // Models
 const Food = require('../models/Food');
 const WorkoutPredefined = require('../models/WorkoutPredefined');
+const ExercisePredefined = require('../models/ExercisePredefined');
 
 // Simple seed data for predefined meals and workouts
 const predefinedFoods = [
@@ -20,6 +21,26 @@ const predefinedWorkouts = [
   { name: 'Jogging', caloriesPerMinute: 8, intensity: 'medium', tags: ['cardio'] },
   { name: 'Cycling (moderate)', caloriesPerMinute: 7, intensity: 'medium', tags: ['cardio'] },
   { name: 'HIIT (intervals)', caloriesPerMinute: 12, intensity: 'high', tags: ['cardio','strength'] },
+];
+
+// Predefined exercises (continuous and discrete)
+const predefinedExercises = [
+  // Continuous exercises
+  { name: 'Walking', type: 'continuous', caloriesPerMinute: 4.5, intensity: 'low', tags: ['cardio'] },
+  { name: 'Running', type: 'continuous', caloriesPerMinute: 11.5, intensity: 'high', tags: ['cardio'] },
+  { name: 'Jogging', type: 'continuous', caloriesPerMinute: 8.5, intensity: 'moderate', tags: ['cardio'] },
+  { name: 'Swimming', type: 'continuous', caloriesPerMinute: 10, intensity: 'high', tags: ['cardio', 'full-body'] },
+  { name: 'Cycling', type: 'continuous', caloriesPerMinute: 8, intensity: 'moderate', tags: ['cardio'] },
+  { name: 'Yoga', type: 'continuous', caloriesPerMinute: 3, intensity: 'low', tags: ['flexibility', 'mindfulness'] },
+  // Discrete exercises
+  { name: 'Pushups', type: 'discrete', caloriesPerRep: 0.5, intensity: 'moderate', tags: ['strength', 'upper-body'] },
+  { name: 'Squats', type: 'discrete', caloriesPerRep: 0.4, intensity: 'moderate', tags: ['strength', 'lower-body'] },
+  { name: 'Lunges', type: 'discrete', caloriesPerRep: 0.5, intensity: 'moderate', tags: ['strength', 'lower-body'] },
+  { name: 'Crunches', type: 'discrete', caloriesPerRep: 0.3, intensity: 'low', tags: ['strength', 'core'] },
+  { name: 'Bench Press', type: 'discrete', caloriesPerRep: 1.2, intensity: 'high', tags: ['strength', 'upper-body'] },
+  { name: 'Deadlift', type: 'discrete', caloriesPerRep: 1.5, intensity: 'high', tags: ['strength', 'full-body'] },
+  { name: 'Pull-ups', type: 'discrete', caloriesPerRep: 0.8, intensity: 'high', tags: ['strength', 'upper-body'] },
+  { name: 'Burpees', type: 'discrete', caloriesPerRep: 1.0, intensity: 'high', tags: ['cardio', 'strength', 'full-body'] },
 ];
 
 async function seed() {
@@ -48,6 +69,15 @@ async function seed() {
     for (const workout of predefinedWorkouts) {
       await WorkoutPredefined.create(workout);
       console.log('Inserted workout:', workout.name);
+    }
+
+    // Reset predefined exercises collection
+    await ExercisePredefined.deleteMany({});
+    console.log('Deleted existing ExercisePredefined documents');
+
+    for (const exercise of predefinedExercises) {
+      await ExercisePredefined.create(exercise);
+      console.log('Inserted exercise:', exercise.name);
     }
 
     console.log('Seeding complete');

@@ -14,6 +14,7 @@ const useSocket = () => {
   const [typingUsers, setTypingUsers] = useState([]);
   const userDataRef = useRef(null);
   const currentGroupRef = useRef(null);
+  const lastRefetchRef = useRef(new Map()); // groupName -> timestamp ms
 
   // Initialize socket (run once)
   useEffect(() => {
@@ -21,6 +22,7 @@ const useSocket = () => {
   let handleConnect;
   let handleConnectError;
   let handleDisconnect;
+  let handleReconnect;
   let handleReceiveMessage;
   let handleUserTyping;
   let handleUserStoppedTyping;
@@ -115,6 +117,54 @@ const useSocket = () => {
   };
   socketService.on('connect', handleConnect);
 
+        // Reconnect occurs after an automatic reconnection; ensure we rejoin group and refresh history
+        handleReconnect = async (attemptNumber) => {
+          console.log('Socket reconnected, attempt:', attemptNumber);
+          setIsConnected(true);
+          isConnectedRef.current = true;
+          setConnectionError(null);
+          const grp = currentGroupRef.current;
+          if (grp && userDataRef.current) {
+            try {
+              console.log('Rejoining group after reconnect:', grp);
+              const joined = await socketService.joinGroup({
+                groupName: grp,
+                userId: userDataRef.current.userId,
+                sender: userDataRef.current.sender,
+                avatar: userDataRef.current.avatar,
+              });
+              if (joined) {
+                currentGroupRef.current = grp;
+                groupConnectedRef.current = true;
+                // re-fetch messages to catch any missed while disconnected
+                try {
+                  const backendUrl = import.meta.env.VITE_BACKEND_BASE_URL || 'http://localhost:5001';
+                  const token = localStorage.getItem('authToken');
+                  const headers = token ? { Authorization: `Bearer ${token}` } : {};
+                  const res = await fetch(`${backendUrl}/api/messages?groupName=${encodeURIComponent(grp)}`, {
+                    headers,
+                  });
+                  if (res.ok) {
+                    const data = await res.json();
+                    setMessages((prev) => {
+                      const incoming = data.map((m) => ({ ...m, isOwn: m.senderId === userDataRef.current.userId }));
+                      const map = new Map();
+                      prev.forEach((p) => map.set(p.id || p._id, p));
+                      incoming.forEach((m) => map.set(m.id || m._id, m));
+                      return Array.from(map.values());
+                    });
+                  }
+                } catch (err) {
+                  console.error('Failed to re-fetch messages after reconnect', err);
+                }
+              }
+            } catch (err) {
+              console.error('Error rejoining group after reconnect', err);
+            }
+          }
+        };
+        socketService.on('reconnect', handleReconnect);
+
         handleConnectError = (err) => {
           setConnectionError(err.message);
           setIsConnected(false);
@@ -133,9 +183,24 @@ const useSocket = () => {
   // Socket events
   handleReceiveMessage = (messageData) => {
           const incomingGroup = messageData.groupName || messageData.group;
-          if (!incomingGroup || incomingGroup !== currentGroupRef.current) return; // ignore messages for other groups
+          // debug: log incoming group and current group refs to diagnose filtering
+          try {
+            console.debug('receive_message event:', { incomingGroup, currentGroupRef: currentGroupRef.current, currentGroupState: currentGroupName, messageData });
+          } catch (e) {
+            console.debug('receive_message debug error', e);
+          }
+          if (!incomingGroup || incomingGroup !== currentGroupRef.current) {
+            console.debug('receive_message ignored (group mismatch)', { incomingGroup, currentGroupRef: currentGroupRef.current, currentGroupState: currentGroupName });
+            return; // ignore messages for other groups
+          }
 
-          const incomingId = messageData.id || messageData._id || messageData._id?.toString?.();
+          // normalize incoming id to a string for reliable comparison
+          let incomingId = null;
+          if (messageData.id !== undefined && messageData.id !== null) {
+            incomingId = typeof messageData.id === 'object' && messageData.id?.toString ? messageData.id.toString() : messageData.id;
+          } else if (messageData._id !== undefined && messageData._id !== null) {
+            incomingId = typeof messageData._id === 'object' && messageData._id?.toString ? messageData._id.toString() : messageData._id;
+          }
           const normalized = {
             id: incomingId,
             _id: incomingId,
@@ -156,10 +221,41 @@ const useSocket = () => {
               return prev.map((m) => (m.id === tempId ? normalized : m));
             }
 
-            const exists = prev.some((m) => m.id === incomingId || m._id === incomingId);
+            const exists = prev.some((m) => (m.id && m.id.toString ? m.id.toString() : m.id) === incomingId || (m._id && m._id.toString ? m._id.toString() : m._id) === incomingId);
             if (exists) return prev;
             return [...prev, normalized];
           });
+
+          // Debounced authoritative refetch: avoid frequent re-fetch storms
+          (async () => {
+            try {
+              const grp = incomingGroup;
+              const now = Date.now();
+              const last = lastRefetchRef.current.get(grp) || 0;
+              // only refetch if >3s since last refetch for this group
+              if (now - last > 3000) {
+                lastRefetchRef.current.set(grp, now);
+                const backendUrl = import.meta.env.VITE_BACKEND_BASE_URL || 'http://localhost:5001';
+                const token = localStorage.getItem('authToken');
+                const headers = token ? { Authorization: `Bearer ${token}` } : {};
+                const res = await fetch(`${backendUrl}/api/messages?groupName=${encodeURIComponent(grp)}`, {
+                  headers,
+                });
+                if (res.ok) {
+                  const data = await res.json();
+                  setMessages((prev) => {
+                    const incoming = data.map((m) => ({ ...m, isOwn: m.senderId === userDataRef.current.userId }));
+                    const map = new Map();
+                    prev.forEach((p) => map.set(p.id || p._id, p));
+                    incoming.forEach((m) => map.set(m.id || m._id, m));
+                    return Array.from(map.values());
+                  });
+                }
+              }
+            } catch (err) {
+              console.debug('Auto-refetch failed', err);
+            }
+          })();
   };
   socketService.on('receive_message', handleReceiveMessage);
 
@@ -189,6 +285,7 @@ const useSocket = () => {
       // remove exact handlers if they were created
       if (typeof handleConnect === 'function') socketService.off('connect', handleConnect);
       if (typeof handleConnectError === 'function') socketService.off('connect_error', handleConnectError);
+      if (typeof handleReconnect === 'function') socketService.off('reconnect', handleReconnect);
       if (typeof handleDisconnect === 'function') socketService.off('disconnect', handleDisconnect);
       if (typeof handleReceiveMessage === 'function') socketService.off('receive_message', handleReceiveMessage);
       if (typeof handleUserTyping === 'function') socketService.off('user_typing', handleUserTyping);
@@ -206,7 +303,7 @@ const useSocket = () => {
       }
 
       // ask to join and wait for server ack to ensure socket is in the room before sending
-  const joined = await socketService.joinGroup({
+  const joined = await socketService.rememberJoin({
         groupName,
         userId: userDataRef.current.userId,
         sender: userDataRef.current.sender,

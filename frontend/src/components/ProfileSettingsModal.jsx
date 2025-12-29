@@ -21,18 +21,10 @@ const ProfileSettingsModal = ({ isOpen, onClose, userData, onSaved }) => {
   // Load user data from backend
   useEffect(() => {
     const load = async () => {
-      if (userData) {
-        setFullName(userData.fullName || "");
-        setGender(userData.gender || "");
-        // normalize dob to yyyy-mm-dd for input
-        setDob(userData.dob ? new Date(userData.dob).toISOString().slice(0, 10) : "");
-        setHeight(userData.heightCm ?? userData.height ?? "");
-        setWeight(userData.weightKg ?? userData.weight ?? "");
-        setProfilePhoto(userData.profilePhoto || "/user.jpg");
-        return;
-      }
+      if (!isOpen) return;
 
-  if (!isOpen) return;
+      // Always fetch fresh data from backend when modal opens
+      // This ensures we have the latest user data from database
 
       // fetch profile from backend
       try {
@@ -43,11 +35,10 @@ const ProfileSettingsModal = ({ isOpen, onClose, userData, onSaved }) => {
         const u = res.data?.user;
         if (u) {
           setFullName(u.fullName || "");
-          setEmail(u.email || "");
           setGender(u.gender || "");
           setDob(u.dob ? new Date(u.dob).toISOString().slice(0, 10) : "");
-          setHeight(u.heightCm ?? u.height ?? "");
-          setWeight(u.weightKg ?? u.weight ?? "");
+          setHeight(u.heightCm ? u.heightCm.toString() : "");
+          setWeight(u.weightKg ? u.weightKg.toString() : "");
           setProfilePhoto(u.profilePhoto || "/user.jpg");
         }
       } catch (err) {
@@ -56,7 +47,7 @@ const ProfileSettingsModal = ({ isOpen, onClose, userData, onSaved }) => {
     };
 
     load();
-  }, [userData, isOpen]);
+  }, [isOpen]);
 
   // Upload handler
   const handlePhotoUpload = (e) => {

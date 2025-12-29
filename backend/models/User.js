@@ -14,8 +14,19 @@ const userSchema = new mongoose.Schema({
   fullName: { type: String, trim: true },
   gender: { type: String, enum: ["male", "female"] },
   dob: { type: Date },
+  age: { type: Number }, // Age in years
   heightCm: { type: Number },
   weightKg: { type: Number },
+  // Fitness calculations
+  bmi: { type: Number }, // Body Mass Index
+  bmr: { type: Number }, // Basal Metabolic Rate
+  dailyCalories: {
+    sedentary: { type: Number },
+    lightActivity: { type: Number },
+    moderateActivity: { type: Number },
+    active: { type: Number },
+    veryActive: { type: Number },
+  },
 }, { timestamps: true });
 
 // hash password automatically when created/changed

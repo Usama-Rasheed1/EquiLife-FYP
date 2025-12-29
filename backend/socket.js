@@ -6,7 +6,8 @@ let io;
 const initializeSocket = (server) => {
   io = new Server(server, {
     cors: {
-      origin: 'http://localhost:5173', // replace with your frontend URL
+      // allow any dev origin to avoid client mismatch across ports/browsers
+      origin: true,
       methods: ['GET', 'POST'],
       credentials: true,
     },
@@ -66,20 +67,22 @@ const initializeSocket = (server) => {
 
         const senderObj = saved.sender || { _id: senderId, fullName: sender, profilePhoto: avatar };
 
+        const idStr = saved._id.toString();
         const messageData = {
-          id: saved._id,
-          _id: saved._id,
+          id: idStr,
+          _id: idStr,
           groupName,
           message: saved.content,
-          senderId: senderObj._id || senderId,
+          senderId: (senderObj._id || senderId).toString ? (senderObj._id || senderId).toString() : (senderObj._id || senderId),
           sender: senderObj.fullName || sender,
           avatar: senderObj.profilePhoto || avatar || '/user.jpg',
           phone: senderObj.phone || '',
-          timestamp: saved.createdAt,
+          timestamp: (saved.createdAt && saved.createdAt.toISOString) ? saved.createdAt.toISOString() : saved.createdAt,
           clientTempId: clientTempId || null,
         };
 
         // Emit to room (includes sender)
+        console.log(`Emitting message to group ${groupName}:`, messageData.id || messageData._id);
         io.to(groupName).emit('receive_message', messageData);
 
         // Acknowledge to the emitter with the saved message
@@ -108,4 +111,17 @@ const initializeSocket = (server) => {
   });
 };
 
-module.exports = { initializeSocket };
+// Return members of a room: [{ socketId, userId }]
+const getRoomMembers = (roomName) => {
+  if (!io || !roomName) return [];
+  const adapterRoom = io.sockets.adapter.rooms.get(roomName);
+  if (!adapterRoom) return [];
+  const members = [];
+  for (const socketId of adapterRoom) {
+    const sock = io.sockets.sockets.get(socketId);
+    members.push({ socketId, userId: sock?.data?.userId || null });
+  }
+  return members;
+};
+
+module.exports = { initializeSocket, getRoomMembers };

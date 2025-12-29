@@ -1,22 +1,151 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import Layout from "../components/Layout";
 import { Scale, Flame, Activity } from "lucide-react";
+import axios from "axios";
+
+// Helper function to calculate age from date of birth
+const calculateAge = (dob) => {
+  if (!dob) return null;
+  const birthDate = new Date(dob);
+  const today = new Date();
+  let age = today.getFullYear() - birthDate.getFullYear();
+  const monthDiff = today.getMonth() - birthDate.getMonth();
+  if (monthDiff < 0 || (monthDiff === 0 && today.getDate() < birthDate.getDate())) {
+    age--;
+  }
+  return age;
+};
 
 const FitnessCalculations = () => {
   const [weight, setWeight] = useState("");
   const [height, setHeight] = useState("");
-  const [age, setAge] = useState("");
+  const [dob, setDob] = useState("");
   const [gender, setGender] = useState("male");
   
   // Validation errors
   const [errors, setErrors] = useState({
     weight: "",
     height: "",
-    age: "",
+    dob: "",
   });
 
   // Results
   const [results, setResults] = useState(null);
+  const [loading, setLoading] = useState(false);
+  const [saving, setSaving] = useState(false);
+
+  // Load user data on mount
+  useEffect(() => {
+    const loadUserData = async () => {
+      try {
+        const token = localStorage.getItem('authToken');
+        if (!token) return;
+
+        const response = await axios.get(
+          `${import.meta.env.VITE_BACKEND_BASE_URL}/api/auth/profile`,
+          { headers: { Authorization: `Bearer ${token}` } }
+        );
+
+        const user = response.data?.user;
+        if (user) {
+          if (user.weightKg) setWeight(user.weightKg.toString());
+          if (user.heightCm) setHeight(user.heightCm.toString());
+          if (user.dob) {
+            // Format DOB for date input (YYYY-MM-DD)
+            const dobDate = new Date(user.dob);
+            setDob(dobDate.toISOString().slice(0, 10));
+          }
+          if (user.gender) setGender(user.gender);
+          
+          // If BMI and BMR exist, show results
+          if (user.bmi && user.bmr) {
+            const bmiValue = user.bmi;
+            const bmrValue = user.bmr;
+            const userAge = user.dob ? calculateAge(user.dob) : user.age;
+            
+            // Calculate BMI category
+            let bmiCategory = "";
+            let bmiColor = "";
+            if (bmiValue < 18.5) {
+              bmiCategory = "Underweight";
+              bmiColor = "text-blue-600";
+            } else if (bmiValue < 25) {
+              bmiCategory = "Normal";
+              bmiColor = "text-green-600";
+            } else if (bmiValue < 30) {
+              bmiCategory = "Overweight";
+              bmiColor = "text-yellow-600";
+            } else {
+              bmiCategory = "Obese";
+              bmiColor = "text-red-600";
+            }
+
+            // Calculate BMR category
+            let bmrCategory = "";
+            let bmrColor = "";
+            let bmrDescription = "";
+            
+            if (user.gender === "male") {
+              if (bmrValue < 1400) {
+                bmrCategory = "Low Metabolism";
+                bmrColor = "text-blue-600";
+                bmrDescription = "Your BMR is below average. Consider increasing physical activity and muscle mass.";
+              } else if (bmrValue < 1800) {
+                bmrCategory = "Normal Metabolism";
+                bmrColor = "text-green-600";
+                bmrDescription = "Your BMR is within the normal range for your age and gender.";
+              } else {
+                bmrCategory = "High Metabolism";
+                bmrColor = "text-orange-600";
+                bmrDescription = "Your BMR is above average. You have a faster metabolism.";
+              }
+            } else {
+              if (bmrValue < 1200) {
+                bmrCategory = "Low Metabolism";
+                bmrColor = "text-blue-600";
+                bmrDescription = "Your BMR is below average. Consider increasing physical activity and muscle mass.";
+              } else if (bmrValue < 1600) {
+                bmrCategory = "Normal Metabolism";
+                bmrColor = "text-green-600";
+                bmrDescription = "Your BMR is within the normal range for your age and gender.";
+              } else {
+                bmrCategory = "High Metabolism";
+                bmrColor = "text-orange-600";
+                bmrDescription = "Your BMR is above average. You have a faster metabolism.";
+              }
+            }
+
+            // Estimate body fat using Deurenberg formula (same as in calculate function)
+            const genderFactor = user.gender === "male" ? 1 : 0;
+            let estimatedBodyFat = (1.20 * bmiValue) + (0.23 * (userAge || 30)) - (10.8 * genderFactor) - 5.4;
+            estimatedBodyFat = Math.max(5, Math.min(50, Math.round(estimatedBodyFat)));
+
+            setResults({
+              bmi: bmiValue,
+              bmr: bmrValue,
+              bmiCategory,
+              bmiColor,
+              bmrCategory,
+              bmrColor,
+              bmrDescription,
+              estimatedBodyFat: Math.max(5, Math.min(50, estimatedBodyFat)),
+              dailyCalories: user.dailyCalories || {
+                sedentary: Math.round(bmrValue * 1.2),
+                lightActivity: Math.round(bmrValue * 1.375),
+                moderateActivity: Math.round(bmrValue * 1.55),
+                active: Math.round(bmrValue * 1.725),
+                veryActive: Math.round(bmrValue * 1.9),
+              },
+            });
+          }
+        }
+      } catch (err) {
+        console.error('Error loading user data:', err);
+      }
+    };
+
+    loadUserData();
+  }, []);
 
   // Real-time validation
   const validateField = (name, value) => {
@@ -41,13 +170,22 @@ const FitnessCalculations = () => {
           error = "Height must be realistic (less than 300 cm)";
         }
         break;
-      case "age":
+      case "dob":
         if (!value || value.trim() === "") {
-          error = "Age is required";
-        } else if (parseInt(value) <= 0) {
-          error = "Age must be greater than 0";
-        } else if (parseInt(value) > 150) {
-          error = "Age must be realistic (less than 150 years)";
+          error = "Date of birth is required";
+        } else {
+          const birthDate = new Date(value);
+          const today = new Date();
+          if (birthDate > today) {
+            error = "Date of birth cannot be in the future";
+          } else {
+            const age = calculateAge(value);
+            if (age !== null && age < 1) {
+              error = "Age must be at least 1 year";
+            } else if (age !== null && age > 150) {
+              error = "Age must be realistic (less than 150 years)";
+            }
+          }
         }
         break;
       default:
@@ -74,10 +212,10 @@ const FitnessCalculations = () => {
     validateField("height", value);
   };
 
-  const handleAgeChange = (e) => {
+  const handleDobChange = (e) => {
     const value = e.target.value;
-    setAge(value);
-    validateField("age", value);
+    setDob(value);
+    validateField("dob", value);
   };
 
   const handleGenderChange = (e) => {
@@ -86,45 +224,64 @@ const FitnessCalculations = () => {
 
   // Check if form is valid
   const isFormValid = () => {
+    const age = dob ? calculateAge(dob) : null;
     return (
       weight &&
       height &&
-      age &&
+      dob &&
       !errors.weight &&
       !errors.height &&
-      !errors.age &&
+      !errors.dob &&
       parseFloat(weight) > 0 &&
       parseFloat(height) > 0 &&
-      parseInt(age) > 0
+      age !== null &&
+      age > 0
     );
   };
 
-  const calculate = () => {
+  const calculate = async () => {
     // Validate all fields before calculation
     const weightValid = validateField("weight", weight);
     const heightValid = validateField("height", height);
-    const ageValid = validateField("age", age);
+    const dobValid = validateField("dob", dob);
 
-    if (!weightValid || !heightValid || !ageValid) {
+    if (!weightValid || !heightValid || !dobValid) {
+      return;
+    }
+
+    // Calculate age from date of birth
+    const a = calculateAge(dob);
+    if (a === null || a <= 0) {
+      setErrors((prev) => ({
+        ...prev,
+        dob: "Invalid date of birth or age calculation failed",
+      }));
       return;
     }
 
     const w = parseFloat(weight);
     const h = parseFloat(height) / 100; // Convert cm to meters
-    const a = parseInt(age);
 
-    // BMI calculation
+    // BMI calculation - Verified WHO standard formula
+    // Formula: BMI = weight (kg) / height (m)²
+    // Source: World Health Organization (WHO) standard
     const bmiValue = w / (h * h);
-    const roundedBmi = Math.round(bmiValue * 10) / 10;
+    // Ensure BMI is within realistic range (10-60)
+    const roundedBmi = Math.max(10, Math.min(60, Math.round(bmiValue * 10) / 10));
 
-    // BMR calculation (Mifflin-St Jeor Equation)
+    // BMR calculation - Mifflin-St Jeor Equation (most accurate BMR formula)
+    // Formula for Men: BMR = (10 × weight in kg) + (6.25 × height in cm) - (5 × age in years) + 5
+    // Formula for Women: BMR = (10 × weight in kg) + (6.25 × height in cm) - (5 × age in years) - 161
+    // Source: Mifflin MD, St Jeor ST, Hill LA, et al. A new predictive equation for resting energy expenditure in healthy individuals.
+    //         Am J Clin Nutr. 1990;51(2):241-247.
     let bmrValue;
     if (gender === "male") {
       bmrValue = 10 * w + 6.25 * (h * 100) - 5 * a + 5;
     } else {
       bmrValue = 10 * w + 6.25 * (h * 100) - 5 * a - 161;
     }
-    const roundedBmr = Math.round(bmrValue);
+    // Ensure BMR is within realistic range (800-4000 kcal/day)
+    const roundedBmr = Math.max(800, Math.min(4000, Math.round(bmrValue)));
 
     // Get BMI classification
     let bmiCategory = "";
@@ -179,22 +336,29 @@ const FitnessCalculations = () => {
       }
     }
 
-    // Calculate daily calorie needs (BMR * activity factor)
-    const sedentary = Math.round(roundedBmr * 1.2);
-    const lightActivity = Math.round(roundedBmr * 1.375);
-    const moderateActivity = Math.round(roundedBmr * 1.55);
-    const active = Math.round(roundedBmr * 1.725);
-    const veryActive = Math.round(roundedBmr * 1.9);
+    // Calculate daily calorie needs (TDEE - Total Daily Energy Expenditure)
+    // Using standard activity multipliers based on Harris-Benedict/Mifflin-St Jeor methodology
+    // These multipliers are widely accepted in nutrition science
+    // Source: Based on standard activity level classifications used in clinical nutrition
+    const sedentary = Math.round(roundedBmr * 1.2);        // Little to no exercise
+    const lightActivity = Math.round(roundedBmr * 1.375);  // Light exercise 1-3 days/week
+    const moderateActivity = Math.round(roundedBmr * 1.55); // Moderate exercise 3-5 days/week
+    const active = Math.round(roundedBmr * 1.725);         // Hard exercise 6-7 days/week
+    const veryActive = Math.round(roundedBmr * 1.9);       // Very hard exercise, physical job
 
-    // Estimate body fat percentage (simple approximation)
-    // Using Deurenberg formula: BF% = (1.20 × BMI) + (0.23 × Age) - (10.8 × gender) - 5.4
-    // gender: 1 for male, 0 for female
+    // Estimate body fat percentage using Deurenberg formula
+    // Formula: BF% = (1.20 × BMI) + (0.23 × Age) - (10.8 × gender) - 5.4
+    // where gender = 1 for male, 0 for female
+    // Source: Deurenberg P, Weststrate JA, Seidell JC. Body mass index as a measure of body fatness: age- and sex-specific prediction formulas.
+    //         Br J Nutr. 1991;65(2):105-114.
+    // Note: This is an estimation formula. For accurate body fat measurement, professional methods (DEXA, BIA) are recommended.
     const genderFactor = gender === "male" ? 1 : 0;
-    const estimatedBodyFat = Math.round(
-      (1.20 * roundedBmi) + (0.23 * a) - (10.8 * genderFactor) - 5.4
-    );
+    let estimatedBodyFat = (1.20 * roundedBmi) + (0.23 * a) - (10.8 * genderFactor) - 5.4;
+    // Clamp body fat percentage to realistic range (5-50% for general population)
+    // Athletes may have lower, elderly may have higher, but 5-50% covers most cases
+    estimatedBodyFat = Math.max(5, Math.min(50, Math.round(estimatedBodyFat)));
 
-    setResults({
+    const resultsData = {
       bmi: roundedBmi,
       bmr: roundedBmr,
       bmiCategory,
@@ -202,7 +366,7 @@ const FitnessCalculations = () => {
       bmrCategory,
       bmrColor,
       bmrDescription,
-      estimatedBodyFat: Math.max(5, Math.min(50, estimatedBodyFat)), // Clamp between 5-50%
+      estimatedBodyFat: estimatedBodyFat,
       dailyCalories: {
         sedentary,
         lightActivity,
@@ -210,19 +374,47 @@ const FitnessCalculations = () => {
         active,
         veryActive,
       },
-    });
+    };
+
+    setResults(resultsData);
+
+    // Save to database
+    try {
+      setSaving(true);
+      const token = localStorage.getItem('authToken');
+      if (token) {
+        await axios.post(
+          `${import.meta.env.VITE_BACKEND_BASE_URL}/api/auth/fitness-calculations`,
+          {
+            weight: w,
+            height: h * 100, // Convert back to cm
+            dob: dob, // Save DOB instead of age
+            gender,
+            bmi: roundedBmi,
+            bmr: roundedBmr,
+            dailyCalories: resultsData.dailyCalories,
+          },
+          { headers: { Authorization: `Bearer ${token}` } }
+        );
+      }
+    } catch (err) {
+      console.error('Error saving fitness calculations:', err);
+      // Don't show error to user, just log it
+    } finally {
+      setSaving(false);
+    }
   };
 
   const handleRecalculate = () => {
     setResults(null);
     setWeight("");
     setHeight("");
-    setAge("");
+    setDob("");
     setGender("male");
     setErrors({
       weight: "",
       height: "",
-      age: "",
+      dob: "",
     });
   };
 
@@ -322,31 +514,29 @@ const FitnessCalculations = () => {
                 )}
               </div>
 
-              {/* Age Input */}
+              {/* Date of Birth Input */}
               <div>
                 <label className="block text-sm font-semibold text-gray-700 mb-2">
-                  Age <span className="text-red-500">*</span>
+                  Date of Birth <span className="text-red-500">*</span>
                 </label>
                 <input
-                  type="number"
-                  value={age}
-                  onChange={handleAgeChange}
-                  onBlur={() => validateField("age", age)}
+                  type="date"
+                  value={dob}
+                  onChange={handleDobChange}
+                  onBlur={() => validateField("dob", dob)}
                   className={`mt-1 w-full border rounded-lg px-4 py-3 text-base focus:outline-none focus:ring-2 transition-colors ${
-                    errors.age
+                    errors.dob
                       ? "border-red-500 focus:ring-red-500"
                       : "border-gray-300 focus:ring-blue-500"
                   }`}
-                  placeholder="Enter your age"
-                  min="1"
-                  step="1"
+                  max={new Date().toISOString().split('T')[0]} // Prevent future dates
                 />
-                {errors.age && (
-                  <p className="mt-1 text-sm text-red-600">{errors.age}</p>
+                {errors.dob && (
+                  <p className="mt-1 text-sm text-red-600">{errors.dob}</p>
                 )}
-                {!errors.age && age && (
+                {!errors.dob && dob && (
                   <p className="mt-1 text-xs text-gray-500">
-                    Enter your current age in years
+                    Age: {calculateAge(dob) !== null ? `${calculateAge(dob)} years` : 'Calculating...'}
                   </p>
                 )}
               </div>
@@ -372,14 +562,14 @@ const FitnessCalculations = () => {
               {/* Calculate Button */}
               <button
                 onClick={calculate}
-                disabled={!isFormValid()}
+                disabled={!isFormValid() || saving}
                 className={`w-full py-3 px-4 rounded-lg font-semibold text-white transition-all duration-200 ${
-                  isFormValid()
+                  isFormValid() && !saving
                     ? "bg-blue-500 hover:bg-blue-600 shadow-md hover:shadow-lg transform hover:-translate-y-0.5"
                     : "bg-gray-300 cursor-not-allowed"
                 }`}
               >
-                Calculate
+                {saving ? "Saving..." : "Calculate"}
               </button>
             </div>
           </div>

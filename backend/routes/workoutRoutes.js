@@ -18,4 +18,10 @@ router.post('/log', auth, workoutController.addWorkoutLog);
 // Protected: get logs for a specific date (YYYY-MM-DD)
 router.get('/logs/:date', auth, workoutController.getWorkoutLogsByDate);
 
+// Snapshot-style endpoints (weekly logs + snapshot items)
+router.post('/log-snap', auth, workoutController.logWorkoutSnapshot);
+router.get('/weekly', auth, workoutController.getWeeklyLog);
+router.put('/:id', auth, workoutController.updateWorkoutItem);
+router.delete('/:id', auth, workoutController.deleteWorkoutItem);
+
 module.exports = router;

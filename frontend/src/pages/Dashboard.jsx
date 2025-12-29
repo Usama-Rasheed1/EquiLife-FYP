@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useState, useEffect } from "react";
 import Layout from "../components/Layout";
 import SummaryCard from "../components/SummaryCard";
 import ActivitiesChart from "../components/ActivitiesChart";
@@ -8,8 +8,56 @@ import GamificationTable from "../components/GamificationTable";
 import ProgressChart from "../components/ProgressChart";
 import GoalsList from "../components/GoalsList";
 import { BarChart3, Scale, Flame } from "lucide-react";
+import axios from "axios";
 
 const DashboardLayout = () => {
+  const [userData, setUserData] = useState(null);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    const fetchUserData = async () => {
+      try {
+        const token = localStorage.getItem('authToken');
+        if (!token) {
+          setLoading(false);
+          return;
+        }
+
+        const response = await axios.get(
+          `${import.meta.env.VITE_BACKEND_BASE_URL}/api/auth/profile`,
+          { headers: { Authorization: `Bearer ${token}` } }
+        );
+
+        setUserData(response.data?.user);
+      } catch (err) {
+        console.error('Error fetching user data:', err);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchUserData();
+  }, []);
+
+  // Get weight display value
+  const getWeightValue = () => {
+    if (userData?.weightKg) {
+      return `${userData.weightKg}kg`;
+    }
+    return "N/A";
+  };
+
+  // Get calories/day display value
+  const getCaloriesValue = () => {
+    if (userData?.dailyCalories?.moderateActivity) {
+      return `${userData.dailyCalories.moderateActivity}/day`;
+    } else if (userData?.bmr) {
+      // Fallback to BMR * 1.55 (moderate activity) if dailyCalories not set
+      return `${Math.round(userData.bmr * 1.55)}/day`;
+    }
+    return "N/A";
+  };
+
   return (
     <Layout>
       <div className="p-6 bg-gray-50 overflow-y-auto">
@@ -26,13 +74,13 @@ const DashboardLayout = () => {
               />
               <SummaryCard
                 title="Weight"
-                value="52kg"
+                value={getWeightValue()}
                 percentage={30}
                 icon={Scale}
               />
               <SummaryCard
                 title="Calories"
-                value="1280/day"
+                value={getCaloriesValue()}
                 percentage={30}
                 icon={Flame}
               />

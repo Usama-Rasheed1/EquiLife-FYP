@@ -1,9 +1,10 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import Layout from "../components/Layout";
 import CustomExerciseModal from "../components/CustomExerciseModal";
 import { PieChart, Pie, Cell, Legend, ResponsiveContainer } from "recharts";
-import { Pencil, Trash2, Plus, Minus, ChevronDown, ChevronUp } from "lucide-react";
+import {  Trash2, Plus, Minus, ChevronDown, ChevronUp } from "lucide-react";
+import * as fitnessService from "../services/fitnessService";
 
 const Fitness = () => {
   const [editIndex, setEditIndex] = useState(null);
@@ -12,32 +13,18 @@ const Fitness = () => {
   const [isCustomModalOpen, setIsCustomModalOpen] = useState(false);
   const [selectedDay, setSelectedDay] = useState("");
   const [gymAccordionOpen, setGymAccordionOpen] = useState(false);
+  const [loading, setLoading] = useState(true);
+  const [predefinedExercises, setPredefinedExercises] = useState([]);
+  const [customExercises, setCustomExercises] = useState([]);
+  const [userFitnessData, setUserFitnessData] = useState(null);
   const navigate = useNavigate();
 
-  // Predefined continuous exercises (calories per minute)
-  const continuousExercises = [
-    { name: "Walking", caloriesPerMinute: 4.5, type: "continuous", intensity: "low" },
-    { name: "Running", caloriesPerMinute: 11.5, type: "continuous", intensity: "high" },
-    { name: "Jogging", caloriesPerMinute: 8.5, type: "continuous", intensity: "moderate" },
-    { name: "Swimming", caloriesPerMinute: 10, type: "continuous", intensity: "high" },
-    { name: "Cycling", caloriesPerMinute: 8, type: "continuous", intensity: "moderate" },
-    { name: "Yoga", caloriesPerMinute: 3, type: "continuous", intensity: "low" },
-  ];
-
-  // Predefined discrete exercises (calories per rep)
-  const discreteExercises = [
-    { name: "Pushups", caloriesPerRep: 0.5, type: "discrete", intensity: "moderate" },
-    { name: "Squats", caloriesPerRep: 0.4, type: "discrete", intensity: "moderate" },
-    { name: "Lunges", caloriesPerRep: 0.5, type: "discrete", intensity: "moderate" },
-    { name: "Crunches", caloriesPerRep: 0.3, type: "discrete", intensity: "low" },
-    { name: "Bench Press", caloriesPerRep: 1.2, type: "discrete", intensity: "high" },
-    { name: "Deadlift", caloriesPerRep: 1.5, type: "discrete", intensity: "high" },
-    { name: "Pull-ups", caloriesPerRep: 0.8, type: "discrete", intensity: "high" },
-    { name: "Burpees", caloriesPerRep: 1.0, type: "discrete", intensity: "high" },
-  ];
-
-  // Combined exercise list for dropdown
-  const allExercises = [...continuousExercises, ...discreteExercises];
+  // Get all exercises (predefined + custom)
+  const allExercises = [...predefinedExercises, ...customExercises];
+  
+  // Separate continuous and discrete for display
+  const continuousExercises = allExercises.filter(e => e.type === "continuous");
+  const discreteExercises = allExercises.filter(e => e.type === "discrete");
 
   // Weekly state (Mon-Sun)
   const [weeklyActivities, setWeeklyActivities] = useState({
@@ -60,33 +47,102 @@ const Fitness = () => {
     intensity: "moderate",
   });
 
-  // Get all exercises including custom ones
+  // Get all exercises including custom ones (for dropdown)
   const getAllExercisesIncludingCustom = () => {
-    const customExercises = Object.values(weeklyActivities)
-      .flat()
-      .filter((item) => item.isCustom)
-      .map((item) => ({
-        name: item.name,
-        type: item.type,
-        caloriesPerMinute: item.type === "continuous" ? (item.caloriesBurned / (item.duration || 1)) : null,
-        caloriesPerRep: item.type === "discrete" ? (item.caloriesBurned / (item.reps || 1)) : null,
-        intensity: item.intensity,
-        isCustom: true,
-      }));
-    
-    // Remove duplicates
-    const uniqueCustom = customExercises.filter((custom, index, self) =>
-      index === self.findIndex((c) => c.name === custom.name)
-    );
-    
-    return [...allExercises, ...uniqueCustom];
+    return allExercises.map(e => ({
+      ...e,
+      isCustom: customExercises.some(ce => ce._id === e._id || ce.name === e.name)
+    }));
   };
 
-  // Get exercise details
-  const getExerciseDetails = (exerciseName) => {
+  // Get exercise details by name or ID
+  const getExerciseDetails = (exerciseNameOrId) => {
     const allExercisesWithCustom = getAllExercisesIncludingCustom();
-    return allExercisesWithCustom.find((e) => e.name === exerciseName);
+    return allExercisesWithCustom.find((e) => e.name === exerciseNameOrId || e._id === exerciseNameOrId);
   };
+  
+  // Get exercise by ID
+  const getExerciseById = (exerciseId) => {
+    return allExercises.find((e) => e._id === exerciseId);
+  };
+
+  // Fetch exercises and weekly logs on mount
+  useEffect(() => {
+    const fetchData = async () => {
+      try {
+        setLoading(true);
+        // Fetch predefined exercises
+        const predefined = await fitnessService.getPredefinedExercises();
+        setPredefinedExercises(predefined || []);
+        
+        // Fetch custom exercises (if logged in)
+        try {
+          const token = localStorage.getItem('authToken');
+          if (token) {
+            const custom = await fitnessService.getCustomExercises();
+            setCustomExercises(custom || []);
+            
+            // Fetch user fitness data (BMI, BMR)
+            try {
+              const response = await fetch(
+                `${import.meta.env.VITE_BACKEND_BASE_URL}/api/auth/profile`,
+                { headers: { Authorization: `Bearer ${token}` } }
+              );
+              if (response.ok) {
+                const data = await response.json();
+                setUserFitnessData(data.user);
+              }
+            } catch (err) {
+              console.warn('Could not fetch user fitness data', err);
+            }
+          }
+        } catch (err) {
+          console.warn('Could not fetch custom exercises', err);
+        }
+        
+        // Fetch weekly logs
+        const today = new Date().toISOString().slice(0, 10);
+        try {
+          const token = localStorage.getItem('authToken');
+          if (token) {
+            const weekData = await fitnessService.getExerciseLogsByWeek(null, today);
+            if (weekData && weekData.activities) {
+              // Transform backend data to frontend format
+              const transformed = {};
+              Object.keys(weekData.activities).forEach(day => {
+                transformed[day] = weekData.activities[day].map(log => {
+                  const exercise = log.exerciseId || {};
+                  return {
+                    _id: log._id,
+                    name: exercise.name || log.name || 'Unknown',
+                    type: exercise.type || log.type,
+                    intensity: exercise.intensity || log.intensity,
+                    duration: log.duration,
+                    reps: log.reps,
+                    caloriesBurned: log.caloriesBurned,
+                    caloriesPerMinute: exercise.caloriesPerMinute,
+                    caloriesPerRep: exercise.caloriesPerRep,
+                    isCustom: log.exerciseModel === 'ExerciseCustom',
+                    exerciseId: log.exerciseId?._id || log.exerciseId,
+                    exerciseModel: log.exerciseModel,
+                  };
+                });
+              });
+              setWeeklyActivities(transformed);
+            }
+          }
+        } catch (err) {
+          console.warn('Could not fetch weekly logs', err);
+        }
+      } catch (err) {
+        console.error('Error fetching data:', err);
+      } finally {
+        setLoading(false);
+      }
+    };
+    
+    fetchData();
+  }, []);
 
   // Calculate calories burned
   const calculateCalories = (exercise, value, type) => {
@@ -118,7 +174,7 @@ const Fitness = () => {
   };
 
   // Add exercise to selected day
-  const handleAddExercise = () => {
+  const handleAddExercise = async () => {
     if (!formData.selectedDay || !formData.selectedExercise) {
       return;
     }
@@ -135,95 +191,293 @@ const Fitness = () => {
       return;
     }
 
-    const caloriesBurned = calculateCalories(
-      exercise,
-      value,
-      formData.exerciseType
-    );
+    try {
+      const today = new Date().toISOString().slice(0, 10);
+      const isCustom = customExercises.some(ce => ce._id === exercise._id || ce.name === exercise.name);
+      
+      const logData = {
+        exerciseId: exercise._id,
+        exerciseModel: isCustom ? 'ExerciseCustom' : 'ExercisePredefined',
+        day: formData.selectedDay,
+        date: today,
+        duration: formData.exerciseType === "continuous" ? parseFloat(value) : null,
+        reps: formData.exerciseType === "discrete" ? parseFloat(value) : null,
+      };
 
-    const exerciseEntry = {
-      name: exercise.name,
-      type: exercise.type,
-      intensity: exercise.intensity || formData.intensity,
-      duration: formData.exerciseType === "continuous" ? parseFloat(value) : null,
-      reps: formData.exerciseType === "discrete" ? parseFloat(value) : null,
-      caloriesBurned: Math.round(caloriesBurned * 10) / 10,
-      isCustom: exercise.isCustom || false,
-    };
+      const savedLog = await fitnessService.addExerciseLog(logData);
+      
+      // Check if exercise was incremented (already existed) or newly added
+      if (savedLog.wasIncremented) {
+        // Update existing entry in state
+        setWeeklyActivities((prev) => {
+          const updated = { ...prev };
+          const dayActivities = [...prev[formData.selectedDay]];
+          
+          // Find existing entry by exerciseId (same exercise for same day)
+          const exerciseIndex = dayActivities.findIndex(
+            item => item.exerciseId && item.exerciseId.toString() === exercise._id.toString()
+          );
+          
+          if (exerciseIndex !== -1) {
+            // Update existing entry with new values
+            const oldValue = exercise.type === "continuous" 
+              ? dayActivities[exerciseIndex].duration 
+              : dayActivities[exerciseIndex].reps;
+            const newValue = exercise.type === "continuous" 
+              ? savedLog.duration 
+              : savedLog.reps;
+            const added = newValue - oldValue;
+            
+            dayActivities[exerciseIndex] = {
+              ...dayActivities[exerciseIndex],
+              _id: savedLog._id,
+              duration: savedLog.duration,
+              reps: savedLog.reps,
+              caloriesBurned: savedLog.caloriesBurned,
+            };
+            
+            // Show notification
+            const unit = exercise.type === "continuous" ? "minutes" : "reps";
+            console.log(`Added ${added} ${unit} to existing ${exercise.name} entry`);
+          } else {
+            // If not found, add as new entry (shouldn't happen, but fallback)
+            const exerciseEntry = {
+              _id: savedLog._id,
+              name: exercise.name,
+              type: exercise.type,
+              intensity: exercise.intensity || formData.intensity,
+              duration: savedLog.duration,
+              reps: savedLog.reps,
+              caloriesBurned: savedLog.caloriesBurned,
+              caloriesPerMinute: exercise.caloriesPerMinute,
+              caloriesPerRep: exercise.caloriesPerRep,
+              isCustom: isCustom,
+              exerciseId: exercise._id,
+              exerciseModel: savedLog.exerciseModel,
+            };
+            dayActivities.push(exerciseEntry);
+          }
+          updated[formData.selectedDay] = dayActivities;
+          return updated;
+        });
+      } else {
+        // Add new entry
+        const exerciseEntry = {
+          _id: savedLog._id,
+          name: exercise.name,
+          type: exercise.type,
+          intensity: exercise.intensity || formData.intensity,
+          duration: savedLog.duration,
+          reps: savedLog.reps,
+          caloriesBurned: savedLog.caloriesBurned,
+          caloriesPerMinute: exercise.caloriesPerMinute,
+          caloriesPerRep: exercise.caloriesPerRep,
+          isCustom: isCustom,
+          exerciseId: exercise._id,
+          exerciseModel: savedLog.exerciseModel,
+        };
 
-    setWeeklyActivities((prev) => ({
-      ...prev,
-      [formData.selectedDay]: [...prev[formData.selectedDay], exerciseEntry],
-    }));
+        setWeeklyActivities((prev) => ({
+          ...prev,
+          [formData.selectedDay]: [...prev[formData.selectedDay], exerciseEntry],
+        }));
+      }
 
-    // Reset form
-    setFormData({
-      selectedDay: formData.selectedDay, // Keep the day selected
-      selectedExercise: "",
-      exerciseType: "continuous",
-      duration: "",
-      reps: "",
-      intensity: "moderate",
-    });
+      // Reset form
+      setFormData({
+        selectedDay: formData.selectedDay, // Keep the day selected
+        selectedExercise: "",
+        exerciseType: "continuous",
+        duration: "",
+        reps: "",
+        intensity: "moderate",
+      });
+    } catch (err) {
+      console.error('Error adding exercise:', err);
+      alert(err.message || 'Failed to add exercise');
+    }
   };
 
   // Handle custom exercise from modal
-  const handleAddCustomExercise = (exercise) => {
+  const handleAddCustomExercise = async (exercise) => {
     if (!selectedDay) return;
 
-    setWeeklyActivities((prev) => ({
-      ...prev,
-      [selectedDay]: [...prev[selectedDay], exercise],
-    }));
+    try {
+      // First, create the custom exercise in the backend
+      const customExerciseData = {
+        name: exercise.name,
+        type: exercise.type,
+        caloriesPerMinute: exercise.caloriesPerMinute || 0,
+        caloriesPerRep: exercise.caloriesPerRep || 0,
+        intensity: exercise.intensity,
+      };
+
+      const savedCustomExercise = await fitnessService.createCustomExercise(customExerciseData);
+      
+      // Update custom exercises list
+      setCustomExercises(prev => [...prev, savedCustomExercise]);
+
+      // Then, log the exercise for the selected day
+      const today = new Date().toISOString().slice(0, 10);
+      const logData = {
+        exerciseId: savedCustomExercise._id,
+        exerciseModel: 'ExerciseCustom',
+        day: selectedDay,
+        date: today,
+        duration: exercise.duration,
+        reps: exercise.reps,
+      };
+
+      const savedLog = await fitnessService.addExerciseLog(logData);
+
+      // Check if exercise was incremented (already existed) or newly added
+      if (savedLog.wasIncremented) {
+        // Update existing entry in state
+        setWeeklyActivities((prev) => {
+          const updated = { ...prev };
+          const dayActivities = [...prev[selectedDay]];
+          
+          // Find existing entry by exerciseId (same exercise for same day)
+          const exerciseIndex = dayActivities.findIndex(
+            item => item.exerciseId && item.exerciseId.toString() === savedCustomExercise._id.toString()
+          );
+          
+          if (exerciseIndex !== -1) {
+            // Update existing entry with new values
+            const oldValue = savedCustomExercise.type === "continuous" 
+              ? dayActivities[exerciseIndex].duration 
+              : dayActivities[exerciseIndex].reps;
+            const newValue = savedCustomExercise.type === "continuous" 
+              ? savedLog.duration 
+              : savedLog.reps;
+            const added = newValue - oldValue;
+            
+            dayActivities[exerciseIndex] = {
+              ...dayActivities[exerciseIndex],
+              _id: savedLog._id,
+              duration: savedLog.duration,
+              reps: savedLog.reps,
+              caloriesBurned: savedLog.caloriesBurned,
+            };
+            
+            // Show notification
+            const unit = savedCustomExercise.type === "continuous" ? "minutes" : "reps";
+            console.log(`Added ${added} ${unit} to existing ${savedCustomExercise.name} entry`);
+          } else {
+            // If not found, add as new entry (shouldn't happen, but fallback)
+            const exerciseEntry = {
+              _id: savedLog._id,
+              name: savedCustomExercise.name,
+              type: savedCustomExercise.type,
+              intensity: savedCustomExercise.intensity,
+              duration: savedLog.duration,
+              reps: savedLog.reps,
+              caloriesBurned: savedLog.caloriesBurned,
+              caloriesPerMinute: savedCustomExercise.caloriesPerMinute,
+              caloriesPerRep: savedCustomExercise.caloriesPerRep,
+              isCustom: true,
+              exerciseId: savedCustomExercise._id,
+              exerciseModel: savedLog.exerciseModel,
+            };
+            dayActivities.push(exerciseEntry);
+          }
+          updated[selectedDay] = dayActivities;
+          return updated;
+        });
+      } else {
+        // Add new entry
+        const exerciseEntry = {
+          _id: savedLog._id,
+          name: savedCustomExercise.name,
+          type: savedCustomExercise.type,
+          intensity: savedCustomExercise.intensity,
+          duration: savedLog.duration,
+          reps: savedLog.reps,
+          caloriesBurned: savedLog.caloriesBurned,
+          caloriesPerMinute: savedCustomExercise.caloriesPerMinute,
+          caloriesPerRep: savedCustomExercise.caloriesPerRep,
+          isCustom: true,
+          exerciseId: savedCustomExercise._id,
+          exerciseModel: savedLog.exerciseModel,
+        };
+
+        setWeeklyActivities((prev) => ({
+          ...prev,
+          [selectedDay]: [...prev[selectedDay], exerciseEntry],
+        }));
+      }
+    } catch (err) {
+      console.error('Error adding custom exercise:', err);
+      alert(err.message || 'Failed to add custom exercise');
+    }
   };
 
   // Increase/decrease quantity (for editing)
-  const handleQuantityChange = (day, index, type) => {
-    setWeeklyActivities((prev) => {
-      const updated = { ...prev };
-      const item = prev[day][index];
+  const handleQuantityChange = async (day, index, changeType) => {
+    const item = weeklyActivities[day][index];
+    if (!item || !item._id) return;
 
+    try {
+      let updates = {};
       if (item.type === "continuous") {
         const newDuration =
-          type === "inc"
+          changeType === "inc"
             ? (item.duration || 0) + 1
             : Math.max(1, (item.duration || 0) - 1);
-        // Use stored caloriesPerMinute from item, or calculate from exercise details, or calculate from current values
-        const caloriesPerMinute = item.caloriesPerMinute || 
-          (getExerciseDetails(item.name)?.caloriesPerMinute) || 
-          (item.duration > 0 ? (item.caloriesBurned / item.duration) : 0);
-        updated[day][index] = {
-          ...item,
-          duration: newDuration,
-          caloriesBurned: Math.round(caloriesPerMinute * newDuration * 10) / 10,
-        };
+        updates.duration = newDuration;
       } else {
         const newReps =
-          type === "inc"
+          changeType === "inc"
             ? (item.reps || 0) + 1
             : Math.max(1, (item.reps || 0) - 1);
-        // Use stored caloriesPerRep from item, or calculate from exercise details, or calculate from current values
-        const caloriesPerRep = item.caloriesPerRep || 
-          (getExerciseDetails(item.name)?.caloriesPerRep) || 
-          (item.reps > 0 ? (item.caloriesBurned / item.reps) : 0);
-        updated[day][index] = {
-          ...item,
-          reps: newReps,
-          caloriesBurned: Math.round(caloriesPerRep * newReps * 10) / 10,
-        };
+        updates.reps = newReps;
       }
 
-      return updated;
-    });
+      const updatedLog = await fitnessService.updateExerciseLog(item._id, updates);
+
+      // Update local state
+      setWeeklyActivities((prev) => {
+        const updated = { ...prev };
+        updated[day][index] = {
+          ...item,
+          duration: updatedLog.duration,
+          reps: updatedLog.reps,
+          caloriesBurned: updatedLog.caloriesBurned,
+        };
+        return updated;
+      });
+    } catch (err) {
+      console.error('Error updating exercise:', err);
+      alert(err.message || 'Failed to update exercise');
+    }
   };
 
   // Delete exercise
-  const handleDelete = (day, index) => {
-    setWeeklyActivities((prev) => {
-      const updated = { ...prev };
-      updated[day] = prev[day].filter((_, i) => i !== index);
-      return updated;
-    });
+  const handleDelete = async (day, index) => {
+    const item = weeklyActivities[day][index];
+    if (!item || !item._id) {
+      // If no ID, just remove from local state (for items not yet saved)
+      setWeeklyActivities((prev) => {
+        const updated = { ...prev };
+        updated[day] = prev[day].filter((_, i) => i !== index);
+        return updated;
+      });
+      return;
+    }
+
+    try {
+      await fitnessService.deleteExerciseLog(item._id);
+      
+      // Update local state
+      setWeeklyActivities((prev) => {
+        const updated = { ...prev };
+        updated[day] = prev[day].filter((_, i) => i !== index);
+        return updated;
+      });
+    } catch (err) {
+      console.error('Error deleting exercise:', err);
+      alert(err.message || 'Failed to delete exercise');
+    }
   };
 
   // Edit exercise
@@ -235,32 +489,89 @@ const Fitness = () => {
   };
 
   // Save edited exercise
-  const handleSaveEdit = (day, index) => {
+  const handleSaveEdit = async (day, index) => {
     const exercise = getExerciseDetails(editValue);
     if (!exercise) return;
 
     const currentItem = weeklyActivities[day][index];
-    const value =
-      exercise.type === "continuous"
-        ? currentItem.duration || 0
-        : currentItem.reps || 0;
+    if (!currentItem._id) {
+      // If no ID, treat as new entry
+      alert('Cannot edit unsaved exercise. Please delete and re-add.');
+      setEditIndex(null);
+      setEditExercise(null);
+      return;
+    }
 
-    const caloriesBurned = calculateCalories(exercise, value, exercise.type);
+    try {
+      // If exercise changed, we need to update the log with new exercise
+      // For simplicity, we'll delete the old log and create a new one
+      // Or we could update the backend to support exercise change
+      
+      // For now, if exercise name changed, delete and recreate
+      if (currentItem.name !== exercise.name) {
+        await fitnessService.deleteExerciseLog(currentItem._id);
+        
+        const today = new Date().toISOString().slice(0, 10);
+        const isCustom = customExercises.some(ce => ce._id === exercise._id || ce.name === exercise.name);
+        
+        const logData = {
+          exerciseId: exercise._id,
+          exerciseModel: isCustom ? 'ExerciseCustom' : 'ExercisePredefined',
+          day: day,
+          date: today,
+          duration: exercise.type === "continuous" ? (currentItem.duration || 0) : null,
+          reps: exercise.type === "discrete" ? (currentItem.reps || 0) : null,
+        };
 
-    setWeeklyActivities((prev) => {
-      const updated = { ...prev };
-      updated[day][index] = {
-        ...exercise,
-        duration: exercise.type === "continuous" ? value : null,
-        reps: exercise.type === "discrete" ? value : null,
-        caloriesBurned: Math.round(caloriesBurned * 10) / 10,
-        isCustom: exercise.isCustom || false,
-      };
-      return updated;
-    });
+        const savedLog = await fitnessService.addExerciseLog(logData);
+        
+        setWeeklyActivities((prev) => {
+          const updated = { ...prev };
+          updated[day][index] = {
+            _id: savedLog._id,
+            name: exercise.name,
+            type: exercise.type,
+            intensity: exercise.intensity,
+            duration: savedLog.duration,
+            reps: savedLog.reps,
+            caloriesBurned: savedLog.caloriesBurned,
+            caloriesPerMinute: exercise.caloriesPerMinute,
+            caloriesPerRep: exercise.caloriesPerRep,
+            isCustom: isCustom,
+            exerciseId: exercise._id,
+            exerciseModel: savedLog.exerciseModel,
+          };
+          return updated;
+        });
+      } else {
+        // Just update duration/reps if exercise didn't change
+        const updates = {};
+        if (exercise.type === "continuous") {
+          updates.duration = currentItem.duration || 0;
+        } else {
+          updates.reps = currentItem.reps || 0;
+        }
+        
+        const updatedLog = await fitnessService.updateExerciseLog(currentItem._id, updates);
+        
+        setWeeklyActivities((prev) => {
+          const updated = { ...prev };
+          updated[day][index] = {
+            ...currentItem,
+            duration: updatedLog.duration,
+            reps: updatedLog.reps,
+            caloriesBurned: updatedLog.caloriesBurned,
+          };
+          return updated;
+        });
+      }
 
-    setEditIndex(null);
-    setEditExercise(null);
+      setEditIndex(null);
+      setEditExercise(null);
+    } catch (err) {
+      console.error('Error saving edit:', err);
+      alert(err.message || 'Failed to save changes');
+    }
   };
 
   // Calculate total calories for a day
@@ -382,9 +693,10 @@ const Fitness = () => {
                 className="w-full border border-gray-300 rounded-lg px-3 py-2 cursor-pointer text-sm sm:text-base focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
               >
                 <option value="">Select Exercise</option>
-                {continuousExercises.map((exercise) => (
-                  <option key={exercise.name} value={exercise.name}>
-                    {exercise.name} ({exercise.type === "continuous" ? `${exercise.caloriesPerMinute} cal/min` : `${exercise.caloriesPerRep} cal/rep`})
+                {allExercises.map((exercise) => (
+                  <option key={exercise._id || exercise.name} value={exercise.name}>
+                    {exercise.name} ({exercise.type === "continuous" ? `${exercise.caloriesPerMinute || 0} cal/min` : `${exercise.caloriesPerRep || 0} cal/rep`})
+                    {customExercises.some(ce => ce._id === exercise._id || ce.name === exercise.name) ? " (Custom)" : ""}
                   </option>
                 ))}
                 <option value="Custom">+ Add Custom Exercise</option>
@@ -583,13 +895,9 @@ const Fitness = () => {
                               Save
                             </button>
                           ) : (
-                            <button
-                              onClick={() => handleEdit(day, index)}
-                              className="text-blue-500 hover:text-blue-600 cursor-pointer flex-shrink-0"
-                            >
-                              <Pencil size={14} className="sm:hidden" />
-                              <Pencil size={16} className="hidden sm:block" />
-                            </button>
+
+                            <button>
+                              </button>
                           )}
 
                           <button
@@ -614,15 +922,25 @@ const Fitness = () => {
           <div>
             <h4 className="text-base sm:text-lg font-semibold mb-1">BMI</h4>
             <p className="text-xl sm:text-2xl font-bold text-blue-600 text-center">
-              22.8
+              {userFitnessData?.bmi ? userFitnessData.bmi.toFixed(1) : "N/A"}
             </p>
+            {!userFitnessData?.bmi && (
+              <p className="text-xs text-gray-500 text-center mt-1">
+                Calculate in Fitness Calculations
+              </p>
+            )}
           </div>
 
           <div>
             <h4 className="text-base sm:text-lg font-semibold mb-1">BMR</h4>
             <p className="text-xl sm:text-2xl font-bold text-green-600 text-center">
-              1550 Kcal
+              {userFitnessData?.bmr ? `${Math.round(userFitnessData.bmr)} Kcal` : "N/A"}
             </p>
+            {!userFitnessData?.bmr && (
+              <p className="text-xs text-gray-500 text-center mt-1">
+                Calculate in Fitness Calculations
+              </p>
+            )}
           </div>
 
           <div>

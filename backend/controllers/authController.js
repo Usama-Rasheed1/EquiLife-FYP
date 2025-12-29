@@ -35,14 +35,18 @@ exports.login = async (req, res) => {
 
 // Update profile fields separately
 exports.updateProfile = async (req, res) => {
-  const { fullName, gender, dob, heightCm, weightKg, password } = req.body;
+  const { fullName, gender, dob, age, heightCm, weightKg, password, bmi, bmr, dailyCalories } = req.body;
   try {
     const updates = {};
     if (fullName !== undefined) updates.fullName = fullName;
     if (gender !== undefined) updates.gender = gender;
     if (dob !== undefined) updates.dob = dob ? new Date(dob) : null;
+    if (age !== undefined) updates.age = age;
     if (heightCm !== undefined) updates.heightCm = heightCm;
     if (weightKg !== undefined) updates.weightKg = weightKg;
+    if (bmi !== undefined) updates.bmi = bmi;
+    if (bmr !== undefined) updates.bmr = bmr;
+    if (dailyCalories !== undefined) updates.dailyCalories = dailyCalories;
     
     // Handle password update separately to ensure it gets hashed
     if (password !== undefined && password !== null && password !== "") {
@@ -61,6 +65,31 @@ exports.updateProfile = async (req, res) => {
   } catch (err) {
     console.error("Update profile error:", err);
     return res.status(500).json({ message: "Error updating profile" });
+  }
+};
+
+// Save fitness calculations (BMI, BMR, etc.)
+exports.saveFitnessCalculations = async (req, res) => {
+  try {
+    const { weight, height, dob, gender, bmi, bmr, dailyCalories } = req.body;
+    const userId = req.user && req.user.id;
+    if (!userId) return res.status(401).json({ message: "Unauthorized" });
+
+    const updates = {};
+    if (weight !== undefined) updates.weightKg = weight;
+    if (height !== undefined) updates.heightCm = height;
+    if (dob !== undefined) updates.dob = dob ? new Date(dob) : null;
+    if (gender !== undefined) updates.gender = gender;
+    if (bmi !== undefined) updates.bmi = bmi;
+    if (bmr !== undefined) updates.bmr = bmr;
+    if (dailyCalories !== undefined) updates.dailyCalories = dailyCalories;
+
+    const updated = await User.findByIdAndUpdate(userId, updates, { new: true, runValidators: true }).select("-password");
+    if (!updated) return res.status(404).json({ message: "User not found" });
+    return res.json({ user: updated, message: "Fitness calculations saved successfully" });
+  } catch (err) {
+    console.error("Save fitness calculations error:", err);
+    return res.status(500).json({ message: "Error saving fitness calculations" });
   }
 };
 

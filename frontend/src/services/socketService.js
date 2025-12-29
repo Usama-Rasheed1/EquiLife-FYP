@@ -5,6 +5,7 @@ class SocketService {
     this.socket = null;
     this._pending = {}; // event -> [callbacks]
     this._registered = {}; // event -> Set(callbacks) attached to socket
+    this._joinedGroups = new Map(); // groupName -> { userId, sender, avatar }
   }
 
   connect(userId, token) {
@@ -19,6 +20,10 @@ class SocketService {
     this.socket = io(backendUrl, {
       auth: { token, userId },
       transports: ['websocket'], // force WebSocket
+      reconnection: true,
+      reconnectionAttempts: Infinity,
+      reconnectionDelay: 500,
+      reconnectionDelayMax: 5000,
     });
 
     // when socket connects, attach any pending listeners
@@ -36,6 +41,24 @@ class SocketService {
         // clear pending listeners for event after attaching
         delete this._pending[event];
       });
+
+      // Re-join any groups we previously joined so server will emit to us
+      if (this._joinedGroups && this._joinedGroups.size) {
+        this._joinedGroups.forEach((info, grp) => {
+          try {
+            // fire-and-forget rejoin; server ack will be ignored here
+            this.socket.emit('joinGroup', { groupName: grp, ...info }, (ack) => {
+              if (ack && ack.ok) {
+                console.log('Auto-rejoined group on connect:', grp);
+              } else {
+                console.warn('Auto-rejoin failed for group:', grp, ack && ack.error);
+              }
+            });
+          } catch (err) {
+            console.error('Auto-rejoin emit error for group', grp, err);
+          }
+        });
+      }
     });
 
     this.socket.on('connect_error', (err) => {
@@ -64,9 +87,20 @@ class SocketService {
     });
   }
 
+  // Remember joined groups so we can rejoin on reconnect
+  async rememberJoin({ groupName, userId, sender, avatar }) {
+    const ok = await this.joinGroup({ groupName, userId, sender, avatar });
+    if (ok) {
+      this._joinedGroups.set(groupName, { userId, sender, avatar });
+    }
+    return ok;
+  }
+
   leaveGroup({ groupName, userId }) {
     if (!this.socket || !groupName || !userId) return false;
     this.socket.emit('leaveGroup', { groupName, userId });
+    // remove from remembered groups
+    if (this._joinedGroups && this._joinedGroups.has(groupName)) this._joinedGroups.delete(groupName);
     return true;
   }
 
