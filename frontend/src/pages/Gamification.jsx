@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from "react";
+import axios from 'axios';
 import Layout from "../components/Layout";
 import AppModal from "../components/AppModal";
 import { Trophy, X, CheckCircle2, Clock, ChevronLeft } from "lucide-react";
@@ -107,25 +108,65 @@ const Gamification = () => {
   const [view, setView] = useState("available"); // "available" or "my-challenges"
   const [myChallenges, setMyChallenges] = useState([]);
   const [userXP, setUserXP] = useState(0);
+  const [availableChallengesState, setAvailableChallengesState] = useState([]);
   const [showSuccessModal, setShowSuccessModal] = useState(false);
   const [toastMessage, setToastMessage] = useState(null);
   const [completedChallenges, setCompletedChallenges] = useState([]); // Track completed challenges to prevent XP farming
+  const backendUrl = import.meta.env.VITE_BACKEND_BASE_URL || 'http://localhost:5001';
 
   // Load data from localStorage on mount
   useEffect(() => {
     const savedChallenges = localStorage.getItem("myChallenges");
     const savedXP = localStorage.getItem("userXP");
     const savedCompleted = localStorage.getItem("completedChallenges");
-    
-    if (savedChallenges) {
-      setMyChallenges(JSON.parse(savedChallenges));
-    }
-    if (savedXP) {
-      setUserXP(parseInt(savedXP, 10));
-    }
-    if (savedCompleted) {
-      setCompletedChallenges(JSON.parse(savedCompleted));
-    }
+
+    if (savedChallenges) setMyChallenges(JSON.parse(savedChallenges));
+    if (savedXP) setUserXP(parseInt(savedXP, 10));
+    if (savedCompleted) setCompletedChallenges(JSON.parse(savedCompleted));
+
+    // fetch backend challenges and profile if possible
+    (async () => {
+      const token = localStorage.getItem('authToken');
+      const headers = token ? { Authorization: `Bearer ${token}` } : {};
+      try {
+        const res = await axios.get(`${backendUrl}/api/gamification/challenges`, { headers });
+        if (res?.data?.ok && Array.isArray(res.data.challenges)) {
+          // normalize backend challenge shape into frontend-friendly structure
+          const mapped = res.data.challenges.map(c => ({
+            id: c.id || c._id,
+            _id: c._id,
+            title: c.title,
+            description: c.description,
+            xp: c.xp_points || c.points || 0, // Support new xp_points and legacy points
+            type: c.badgeName || c.type || 'custom', // badgeName is the new field (physical/mental)
+            totalDays: c.totalDays || (c.type === 'daily' ? 1 : (c.type === 'weekly' ? 7 : 1)),
+            cooldownHours: c.cooldownHours || 24,
+            isActive: c.status === 'active' // Map status to isActive for frontend compatibility
+          }));
+          setAvailableChallengesState(mapped);
+        }
+      } catch (err) {
+        // ignore - keep local AVAILABLE_CHALLENGES
+      }
+
+      try {
+        const res2 = await axios.get(`${backendUrl}/api/gamification/profile`, { headers });
+        if (res2?.data?.ok && res2.data.profile) {
+          // Use userXP from response (source of truth from User model), fallback to profile.totalPoints
+          const xp = res2.data.userXP !== undefined ? res2.data.userXP : (res2.data.profile.totalPoints || 0);
+          setUserXP(xp);
+          // set completed challenges from profile
+          const completed = (res2.data.profile.completedChallenges || []).map(cc => ({ id: cc.challengeId, completedAt: cc.completedAt }));
+          setCompletedChallenges(completed);
+          // set active challenges from profile (map challengeId -> minimal challenge object)
+          const actives = (res2.data.profile.activeChallenges || []).map(ac => ({ id: ac.challengeId, startDate: ac.startedAt, status: 'in-progress', currentProgress: 0, totalDays: 1 }));
+          setMyChallenges(actives);
+        }
+      } catch (err) {
+        // ignore - offline mode
+        console.error('Failed to load gamification profile:', err);
+      }
+    })();
   }, []);
 
   // Save to localStorage whenever state changes
@@ -153,30 +194,74 @@ const Gamification = () => {
   };
 
   // Start a challenge
-  const handleStartChallenge = (challengeId) => {
-    // Check if challenge already started
+  const handleStartChallenge = async (challengeId) => {
+    // optimistic guard
     if (myChallenges.some((c) => c.id === challengeId)) {
       showToast("You already started this challenge");
       return;
     }
-
-    // Check if challenge was previously completed (prevent XP farming)
     if (isChallengeCompleted(challengeId)) {
       showToast("You have already completed this challenge");
       return;
     }
 
-    const challenge = AVAILABLE_CHALLENGES.find((c) => c.id === challengeId);
+    // Find challenge (either from backend or local)
+    const backendChallenge = availableChallengesState.find(c => (c._id || c.id) == challengeId);
+    const localChallenge = AVAILABLE_CHALLENGES.find((c) => c.id === challengeId);
+    const challenge = backendChallenge || localChallenge;
+    
     if (!challenge) return;
+    
+    const token = localStorage.getItem('authToken');
+    const headers = token ? { Authorization: `Bearer ${token}` } : {};
 
-    const newChallenge = {
-      ...challenge,
-      currentProgress: 0,
-      startDate: new Date().toISOString(),
-      lastUpdateDate: null,
-      status: "in-progress",
-    };
+    // Always try to start challenge on backend (accepts challenge metadata)
+    let payload;
+    if (backendChallenge && backendChallenge._id) {
+      // Backend challenge exists - send its _id
+      payload = backendChallenge._id;
+    } else {
+      // Local challenge - send challenge metadata
+                payload = {
+                  id: challenge.id,
+                  _id: challenge.id, // Use frontend id as _id for local challenges
+                  title: challenge.title,
+                  description: challenge.description,
+                  xp: challenge.xp,
+                  xp_points: challenge.xp, // Backend uses 'xp_points' field
+                  points: challenge.xp, // Legacy support
+                  badgeName: challenge.type || 'physical', // Map type to badgeName (physical/mental)
+                  type: challenge.type || 'custom', // Keep for compatibility
+                  totalDays: challenge.totalDays,
+                  cooldownHours: 24 // Default cooldown
+                };
+    }
 
+    try {
+      const res = await axios.post(`${backendUrl}/api/gamification/challenge/start`, { challengeId: payload }, { headers });
+      if (res?.data?.ok && res.data.profile) {
+        // reflect server state
+        const challengeIdToUse = backendChallenge?._id || challenge.id;
+        setMyChallenges(prev => [...prev, { 
+          id: challengeIdToUse, 
+          title: challenge.title, 
+          currentProgress: 0, 
+          startDate: new Date().toISOString(), 
+          lastUpdateDate: null, 
+          status: 'in-progress', 
+          totalDays: challenge.totalDays,
+          xp: challenge.xp
+        }]);
+        setShowSuccessModal(true);
+        return;
+      }
+    } catch (err) {
+      console.error('start challenge error', err?.response?.data || err.message);
+      showToast('Failed to start challenge (server) - using offline mode');
+    }
+
+    // fallback to local-only start (offline)
+    const newChallenge = { ...challenge, currentProgress: 0, startDate: new Date().toISOString(), lastUpdateDate: null, status: 'in-progress' };
     setMyChallenges([...myChallenges, newChallenge]);
     setShowSuccessModal(true);
   };
@@ -214,24 +299,62 @@ const Gamification = () => {
         const isCompleted = newProgress >= c.totalDays;
         
         // Award XP only once when completed (prevent XP farming)
-        if (isCompleted && c.status !== "completed") {
+  if (isCompleted && c.status !== "completed") {
           // Check if this challenge was already completed before (XP exploit prevention)
           const wasPreviouslyCompleted = completedChallenges.some(
             (comp) => comp.id === challengeId
           );
           
           if (!wasPreviouslyCompleted) {
-            setUserXP((prev) => prev + c.xp);
-            // Mark as completed in history
-            setCompletedChallenges([
-              ...completedChallenges,
-              {
-                id: challengeId,
-                title: c.title,
-                xp: c.xp,
-                completedAt: new Date().toISOString(),
-              },
-            ]);
+            // Always attempt server-side completion (backend accepts challenge metadata)
+            (async () => {
+              const token = localStorage.getItem('authToken');
+              const headers = token ? { Authorization: `Bearer ${token}` } : {};
+              
+              // Check if there's a backend challenge
+              const backendChallenge = availableChallengesState.find(ac => ac.id === c.id || ac._id === c.id);
+              
+              // Prepare payload: use backend _id if available, otherwise send challenge metadata
+              let payload;
+              if (backendChallenge && backendChallenge._id) {
+                // Backend challenge exists - send its _id
+                payload = backendChallenge._id;
+              } else {
+                // Local challenge - send challenge metadata with xp, id, etc.
+                payload = {
+                  id: c.id,
+                  _id: c.id, // Use frontend id as _id for local challenges
+                  title: c.title,
+                  description: c.description,
+                  xp: c.xp,
+                  points: c.xp, // Backend uses 'points' field
+                  type: c.type || 'custom',
+                  totalDays: c.totalDays,
+                  cooldownHours: 24 // Default cooldown
+                };
+              }
+              
+              try {
+                const res = await axios.post(`${backendUrl}/api/gamification/challenge/complete`, { challengeId: payload }, { headers });
+                if (res?.data?.ok) {
+                  // update XP from server response (userXP is the source of truth from User model)
+                  const newXP = res.data.userXP !== undefined ? res.data.userXP : (res.data.profile?.totalPoints || (userXP + c.xp));
+                  setUserXP(newXP);
+                  setCompletedChallenges(prev => [...prev, { id: challengeId, title: c.title, xp: c.xp, completedAt: new Date().toISOString() }]);
+                } else {
+                  showToast('Could not complete challenge on server');
+                  // Fallback to offline awarding
+                  setUserXP((prev) => prev + c.xp);
+                  setCompletedChallenges(prev => [...prev, { id: challengeId, title: c.title, xp: c.xp, completedAt: new Date().toISOString() }]);
+                }
+              } catch (err) {
+                console.error('complete challenge error', err?.response?.data || err.message);
+                showToast('Failed to complete challenge (server) - using offline mode');
+                // Fallback to offline awarding
+                setUserXP((prev) => prev + c.xp);
+                setCompletedChallenges(prev => [...prev, { id: challengeId, title: c.title, xp: c.xp, completedAt: new Date().toISOString() }]);
+              }
+            })();
           } else {
             showToast("XP already awarded for this challenge");
           }

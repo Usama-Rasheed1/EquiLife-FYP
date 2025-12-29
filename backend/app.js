@@ -26,6 +26,9 @@ const workoutRoutes = require('./routes/workoutRoutes');
 const newMealRoutes = require('./routes/meal.routes');
 const foodRoutes = require('./routes/food.routes');
 
+// Gamification routes
+const gamificationRoutes = require('./routes/gamificationRoutes');
+
 // Foods endpoints (predefined + user custom)
 app.use('/api/foods', foodRoutes);
 
@@ -34,5 +37,8 @@ app.use('/api/meals', newMealRoutes);
 
 // Existing workout routes kept as-is
 app.use('/api/workouts', workoutRoutes);
+
+// mount gamification API
+app.use('/api/gamification', gamificationRoutes);
 
 module.exports = app;
