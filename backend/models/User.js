@@ -28,7 +28,6 @@ const userSchema = new mongoose.Schema({
   age: { type: Number }, // Age in years
   heightCm: { type: Number },
   weightKg: { type: Number },
-<<<<<<< HEAD
   // Fitness calculations
   bmi: { type: Number }, // Body Mass Index
   bmr: { type: Number }, // Basal Metabolic Rate
@@ -39,14 +38,12 @@ const userSchema = new mongoose.Schema({
     active: { type: Number },
     veryActive: { type: Number },
   },
-=======
   // Total XP/points earned from completing challenges
   totalPoints: { type: Number, default: 0, min: 0 },
   // Gamification: track active and completed challenges
   activeChallenges: { type: [ActiveChallengeSchema], default: [] },
   completedChallenges: { type: [CompletedChallengeSchema], default: [] },
   badges: { type: [String], default: [] }
->>>>>>> 0c8279a60146bbbdb23701426b7bda820f2f3b5b
 }, { timestamps: true });
 
 // hash password automatically when created/changed
