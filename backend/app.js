@@ -13,7 +13,8 @@ app.use((req, res, next) => {
 	next();
 });
 
-app.use(express.json());
+app.use(express.json({ limit: '50mb' }));
+app.use(express.urlencoded({ limit: '50mb', extended: true }));
 app.use(cookieParser());
 
 const authRoutes = require('./routes/authRoutes');
@@ -26,13 +27,13 @@ const messageRoutes = require('./routes/messageRoutes');
 app.use('/api/messages', messageRoutes);
 
 // Mount new EquiLife routes
-const workoutRoutes = require('./routes/workoutRoutes');
-const newMealRoutes = require('./routes/meal.routes');
-const foodRoutes = require('./routes/food.routes');
+// const workoutRoutes = require('./routes/workoutRoutes');
+const newMealRoutes = require('./routes/mealRoutes');
+const foodRoutes = require('./routes/foodRoutes');
 const fitnessRoutes = require('./routes/fitnessRoutes');
+const assessmentRoutes = require('./routes/assessmentRoutes');
 
-// Gamification routes
-const gamificationRoutes = require('./routes/gamificationRoutes');
+
 
 // Foods endpoints (predefined + user custom)
 app.use('/api/foods', foodRoutes);
@@ -43,8 +44,11 @@ app.use('/api/meals', newMealRoutes);
 // Fitness/exercise endpoints (predefined + user custom + logging)
 app.use('/api/fitness', fitnessRoutes);
 
+// Assessment endpoints (mental health assessments)
+app.use('/api/assessments', assessmentRoutes);
+
 // Existing workout routes kept as-is
-app.use('/api/workouts', workoutRoutes);
+// app.use('/api/workouts', workoutRoutes);
 
 // Debug: inspect socket room members (dev only)
 try {
@@ -57,7 +61,6 @@ try {
 } catch (err) {
 	console.warn('Socket debug route not available:', err.message);
 }
-// mount gamification API
-app.use('/api/gamification', gamificationRoutes);
+
 
 module.exports = app;

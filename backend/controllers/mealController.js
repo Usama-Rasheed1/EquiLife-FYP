@@ -1,149 +1,216 @@
-const MealPredefined = require('../models/MealPredefined');
-const MealCustom = require('../models/MealCustom');
-const MealLog = require('../models/MealLog');
+const Food = require('../models/Food');
+const DailyLog = require('../models/DailyLog');
+const MealItem = require('../models/MealItem');
+const mongoose = require('mongoose');
 
-// List all predefined (global) meals
-exports.getPredefinedMeals = async (req, res) => {
+// Helper to find or create daily log
+async function findOrCreateDailyLog(userId, date) {
+  const filter = { userId: new mongoose.Types.ObjectId(userId), date };
+  const update = { $setOnInsert: { userId: new mongoose.Types.ObjectId(userId), date } };
+  const opts = { upsert: true, new: true, setDefaultsOnInsert: true };
+  // Note: findOneAndUpdate used to atomically create if missing
+  const doc = await DailyLog.findOneAndUpdate(filter, update, opts);
+  return doc;
+}
+
+// POST /api/meals/log
+// body: { date, mealType, foodId, quantity }
+exports.logMeal = async (req, res) => {
   try {
-    const meals = await MealPredefined.find().lean();
-    return res.json(meals);
-  } catch (err) {
-    console.error('getPredefinedMeals error', err);
-    return res.status(500).json({ message: 'Server error' });
-  }
-};
+    const userId = req.user && req.user.id;
+    const { date, mealType, foodId, quantity } = req.body;
 
-// Create a custom meal for the logged-in user
-exports.createCustomMeal = async (req, res) => {
-  try {
-    const { name, calories, protein, carbs, fat, servingSize, unit, notes, tags, defaultMealTypes } = req.body;
+    if (!userId) return res.status(401).json({ message: 'Unauthorized' });
+    if (!date || !/^\d{4}-\d{2}-\d{2}$/.test(date)) return res.status(400).json({ message: 'Invalid date' });
+    if (!foodId || !mongoose.Types.ObjectId.isValid(foodId)) return res.status(400).json({ message: 'Invalid foodId' });
+    if (!['Breakfast', 'Lunch', 'Dinner', 'Snacks'].includes(mealType)) return res.status(400).json({ message: 'Invalid mealType' });
+    const qty = Number(quantity);
+    if (isNaN(qty) || qty <= 0) return res.status(400).json({ message: 'Invalid quantity' });
 
-    if (!name || calories == null) {
-      return res.status(400).json({ message: 'Missing required fields: name and calories' });
-    }
+    // Fetch food (source of truth)
+    const food = await Food.findById(foodId).lean();
+    if (!food) return res.status(400).json({ message: 'Food not found' });
 
-    // Validate defaultMealTy`pes if provided
-    if (defaultMealTypes !== undefined) {
-      if (!Array.isArray(defaultMealTypes)) {
-        return res.status(400).json({ message: 'defaultMealTypes must be an array' });
-      }
-      const allowed = ['breakfast', 'lunch', 'dinner', 'snack'];
-      const invalid = defaultMealTypes.filter(t => !allowed.includes(t));
-      if (invalid.length) {
-        return res.status(400).json({ message: `Invalid defaultMealTypes entries: ${invalid.join(', ')}` });
-      }
-    }
+    // Find or create DailyLog
+    const dailyLog = await findOrCreateDailyLog(userId, date);
 
-    const meal = new MealCustom({
-      userId: req.user.id,
-      name,
-      calories,
-      protein,
-      carbs,
-      fat,
-      servingSize,
-      unit,
-      notes,
-      tags,
-      defaultMealTypes
-    });
-
-    const saved = await meal.save();
-    return res.status(201).json(saved.toObject());
-  } catch (err) {
-    console.error('createCustomMeal error', err);
-    return res.status(500).json({ message: 'Server error' });
-  }
-};
-
-// List custom meals for the logged-in user
-exports.getCustomMeals = async (req, res) => {
-  try {
-    const meals = await MealCustom.find({ userId: req.user.id }).lean();
-    return res.json(meals);
-  } catch (err) {
-    console.error('getCustomMeals error', err);
-    return res.status(500).json({ message: 'Server error' });
-  }
-};
-
-// Add a meal log (for either predefined or custom meal)
-exports.addMealLog = async (req, res) => {
-  try {
-    const { mealId, mealModel, mealType, quantity, date } = req.body;
-
-    if (!mealId || !mealModel || !mealType || quantity == null || !date) {
-      return res.status(400).json({ message: 'Missing required fields' });
-    }
-
-    if (!['MealPredefined', 'MealCustom'].includes(mealModel)) {
-      return res.status(400).json({ message: 'Invalid mealModel' });
-    }
-
-    if (!['breakfast', 'lunch', 'dinner', 'snack'].includes(mealType)) {
-      return res.status(400).json({ message: 'Invalid mealType' });
-    }
-
-    if (!/^\d{4}-\d{2}-\d{2}$/.test(date)) {
-      return res.status(400).json({ message: 'Invalid date format, expected YYYY-MM-DD' });
-    }
-
-    // Ensure the referenced meal exists and, if it has defaultMealTypes, that the mealType is allowed
-    let referencedMeal = null;
-    if (mealModel === 'MealPredefined') {
-      referencedMeal = await MealPredefined.findById(mealId).lean();
-    } else {
-      referencedMeal = await MealCustom.findById(mealId).lean();
-    }
-
-    if (!referencedMeal) {
-      return res.status(400).json({ message: 'Referenced meal not found' });
-    }
-
-    if (Array.isArray(referencedMeal.defaultMealTypes) && referencedMeal.defaultMealTypes.length > 0) {
-      if (!referencedMeal.defaultMealTypes.includes(mealType)) {
-        return res.status(400).json({ message: `This meal is not allowed to be logged as ${mealType}` });
-      }
-    }
-
-    const log = new MealLog({
-      userId: req.user.id,
-      mealId,
-      mealModel,
+    // Create MealItem with snapshot values copied from Food
+    const mealItem = new MealItem({
+      dailyLogId: dailyLog._id,
+      foodId: food._id,
       mealType,
-      quantity,
-      date,
+      quantity: qty,
+      calories: food.calories,
+      protein: food.protein,
+      carbs: food.carbs,
+      fat: food.fat,
+      grams: food.grams,
     });
 
-    const saved = await log.save();
-    return res.status(201).json(saved.toObject());
+    // Save mealItem (without transaction, standalone MongoDB doesn't support them)
+    await mealItem.save();
+
+    // Update daily totals (atomic increment)
+    const inc = {
+      totalCalories: mealItem.calories * mealItem.quantity,
+      totalProtein: mealItem.protein * mealItem.quantity,
+      totalCarbs: mealItem.carbs * mealItem.quantity,
+      totalFat: mealItem.fat * mealItem.quantity,
+    };
+
+    const updatedDaily = await DailyLog.findOneAndUpdate(
+      { _id: dailyLog._id },
+      { $inc: inc },
+      { new: true }
+    ).lean();
+
+    return res.status(201).json({ dailyLog: updatedDaily, mealItem: mealItem.toObject() });
   } catch (err) {
-    // Duplicate key error from unique index
-    if (err && err.code === 11000) {
-      return res.status(400).json({ message: 'Meal already logged for this user/date/type' });
-    }
-    console.error('addMealLog error', err);
+    console.error('logMeal error', err);
     return res.status(500).json({ message: 'Server error' });
   }
 };
 
-// Get meal logs for a user for a specific date
-exports.getMealLogsByDate = async (req, res) => {
+// GET /api/meals/daily?date=YYYY-MM-DD
+exports.getDailyLog = async (req, res) => {
   try {
-    const { date } = req.params;
+    const userId = req.user && req.user.id;
+    const { date } = req.query;
+    if (!date || !/^\d{4}-\d{2}-\d{2}$/.test(date)) return res.status(400).json({ message: 'Invalid date' });
 
-    if (!date || !/^\d{4}-\d{2}-\d{2}$/.test(date)) {
-      return res.status(400).json({ message: 'Invalid or missing date parameter (YYYY-MM-DD)' });
+    const dailyLog = await DailyLog.findOne({ userId, date }).lean();
+    if (!dailyLog) {
+      // return empty template
+      return res.json({ dailyLog: null, meals: { Breakfast: [], Lunch: [], Dinner: [], Snacks: [] } });
     }
 
-    // populate the referenced meal (predefined or custom)
-    const logs = await MealLog.find({ userId: req.user.id, date })
-      .populate('mealId')
-      .lean();
+    const items = await MealItem.find({ dailyLogId: dailyLog._id }).lean();
 
-    return res.json(logs);
+    const grouped = { Breakfast: [], Lunch: [], Dinner: [], Snacks: [] };
+    items.forEach((it) => {
+      if (!grouped[it.mealType]) grouped[it.mealType] = [];
+      grouped[it.mealType].push(it);
+    });
+
+    return res.json({ dailyLog, meals: grouped });
   } catch (err) {
-    console.error('getMealLogsByDate error', err);
+    console.error('getDailyLog error', err);
     return res.status(500).json({ message: 'Server error' });
   }
 };
+
+// GET /api/meals/history?range=week|month|year&date=YYYY-MM-DD
+exports.getHistory = async (req, res) => {
+  try {
+    const userId = req.user && req.user.id;
+    const { range, date } = req.query;
+    if (!range || !['week', 'month', 'year'].includes(range)) return res.status(400).json({ message: 'Invalid range' });
+    if (!date || !/^\d{4}-\d{2}-\d{2}$/.test(date)) return res.status(400).json({ message: 'Invalid date' });
+
+    const anchor = new Date(date + 'T00:00:00Z');
+    let start = new Date(anchor);
+    let end = new Date(anchor);
+
+    if (range === 'week') {
+      // compute start as 6 days before to provide 7-day window ending at date
+      start.setUTCDate(anchor.getUTCDate() - 6);
+    } else if (range === 'month') {
+      start.setUTCDate(1);
+    } else if (range === 'year') {
+      start.setUTCMonth(0, 1);
+    }
+
+    // format helper
+    const toYMD = (d) => d.toISOString().slice(0, 10);
+    const startStr = toYMD(start);
+    const endStr = toYMD(end);
+
+    // Aggregate DailyLog for date range using stored totals only
+    const pipeline = [
+      { $match: { userId: new mongoose.Types.ObjectId(userId), date: { $gte: startStr, $lte: endStr } } },
+      { $project: { date: 1, totalCalories: 1, totalProtein: 1, totalCarbs: 1, totalFat: 1 } },
+      { $sort: { date: 1 } }
+    ];
+
+    const rows = await DailyLog.aggregate(pipeline);
+    return res.json({ range, start: startStr, end: endStr, data: rows });
+  } catch (err) {
+    console.error('getHistory error', err);
+    return res.status(500).json({ message: 'Server error' });
+  }
+};
+
+    // PUT /api/meals/:id  -> update quantity of a MealItem
+    exports.updateMeal = async (req, res) => {
+      try {
+        const userId = req.user && req.user.id;
+        const mealItemId = req.params.id;
+        const { quantity } = req.body;
+
+        if (!userId) return res.status(401).json({ message: 'Unauthorized' });
+        if (!mealItemId || !mongoose.Types.ObjectId.isValid(mealItemId)) return res.status(400).json({ message: 'Invalid meal item id' });
+        const newQty = Number(quantity);
+        if (isNaN(newQty) || newQty <= 0) return res.status(400).json({ message: 'Invalid quantity' });
+
+        const mealItem = await MealItem.findById(mealItemId);
+        if (!mealItem) return res.status(404).json({ message: 'Meal item not found' });
+
+        const dailyLog = await DailyLog.findById(mealItem.dailyLogId);
+        if (!dailyLog) return res.status(400).json({ message: 'Daily log not found' });
+        if (String(dailyLog.userId) !== String(userId)) return res.status(403).json({ message: 'Forbidden' });
+
+        const oldQty = mealItem.quantity;
+        if (oldQty === newQty) return res.json({ mealItem: mealItem.toObject(), dailyLog });
+
+        const delta = newQty - oldQty;
+        const inc = {
+          totalCalories: mealItem.calories * delta,
+          totalProtein: mealItem.protein * delta,
+          totalCarbs: mealItem.carbs * delta,
+          totalFat: mealItem.fat * delta,
+        };
+
+        // Update MealItem quantity and DailyLog totals
+        const updatedMealItem = await MealItem.findByIdAndUpdate(mealItemId, { $set: { quantity: newQty } }, { new: true }).lean();
+        const updatedDaily = await DailyLog.findByIdAndUpdate(dailyLog._id, { $inc: inc }, { new: true }).lean();
+
+        return res.json({ mealItem: updatedMealItem, dailyLog: updatedDaily });
+      } catch (err) {
+        console.error('updateMeal error', err);
+        return res.status(500).json({ message: 'Server error' });
+      }
+    };
+
+    // DELETE /api/meals/:id  -> delete a MealItem and decrement DailyLog totals
+    exports.deleteMeal = async (req, res) => {
+      try {
+        const userId = req.user && req.user.id;
+        const mealItemId = req.params.id;
+
+        if (!userId) return res.status(401).json({ message: 'Unauthorized' });
+        if (!mealItemId || !mongoose.Types.ObjectId.isValid(mealItemId)) return res.status(400).json({ message: 'Invalid meal item id' });
+
+        const mealItem = await MealItem.findById(mealItemId);
+        if (!mealItem) return res.status(404).json({ message: 'Meal item not found' });
+
+        const dailyLog = await DailyLog.findById(mealItem.dailyLogId);
+        if (!dailyLog) return res.status(400).json({ message: 'Daily log not found' });
+        if (String(dailyLog.userId) !== String(userId)) return res.status(403).json({ message: 'Forbidden' });
+
+        const dec = {
+          totalCalories: -mealItem.calories * mealItem.quantity,
+          totalProtein: -mealItem.protein * mealItem.quantity,
+          totalCarbs: -mealItem.carbs * mealItem.quantity,
+          totalFat: -mealItem.fat * mealItem.quantity,
+        };
+
+        // Delete meal item and update daily totals
+        await MealItem.findByIdAndDelete(mealItemId);
+        const updatedDaily = await DailyLog.findByIdAndUpdate(dailyLog._id, { $inc: dec }, { new: true }).lean();
+
+        return res.json({ dailyLog: updatedDaily });
+      } catch (err) {
+        console.error('deleteMeal error', err);
+        return res.status(500).json({ message: 'Server error' });
+      }
+    };
