@@ -3,67 +3,85 @@ import { useNavigate } from "react-router-dom";
 import Layout from "../components/Layout";
 import AppModal from "../components/AppModal";
 import { Target, TrendingUp, TrendingDown, Minus, CheckCircle2, ChevronDown, ChevronUp, Lightbulb } from "lucide-react";
+import { getGoals, getAvailableGoals, startGoal, restartGoal } from "../services/goalService";
+import { getLatestAssessments } from "../services/assessmentService";
+
+// Map backend goal types to frontend goal IDs
+const GOAL_TYPE_TO_ID = {
+  'gad7': 'control-anxiety',
+  'phq9': 'reduce-depression',
+  'ghq12': 'improve-mental-health',
+  'weight': 'get-slim',
+  'protein': 'build-muscle',
+  'calories_burned': 'improve-activity'
+};
+
+const GOAL_ID_TO_TYPE = {
+  'control-anxiety': 'gad7',
+  'reduce-depression': 'phq9',
+  'improve-mental-health': 'ghq12',
+  'get-slim': 'weight',
+  'build-muscle': 'protein',
+  'improve-activity': 'calories_burned'
+};
 
 // Goal definitions - System-generated based on available metrics
 const AVAILABLE_GOALS = [
   // Mental Health Goals
   {
     id: "control-anxiety",
+    goalType: "gad7",
     title: "Control Anxiety",
     description: "Reduce anxiety levels based on GAD-7 assessment scores",
     metric: "GAD-7",
     type: "mental",
-    targetValue: 5, // Target: Mild or lower (0-4)
-    improvementDirection: "decrease", // Lower is better
+    improvementDirection: "decrease",
   },
   {
     id: "reduce-depression",
+    goalType: "phq9",
     title: "Reduce Depression",
     description: "Improve mood based on PHQ-9 assessment scores",
     metric: "PHQ-9",
     type: "mental",
-    targetValue: 5, // Target: Mild or lower (0-4)
     improvementDirection: "decrease",
   },
   {
     id: "improve-mental-health",
+    goalType: "ghq12",
     title: "Improve General Mental Health",
     description: "Enhance overall wellbeing based on GHQ-12 scores",
     metric: "GHQ-12",
     type: "mental",
-    targetValue: 3, // Target: Low distress (0-3)
     improvementDirection: "decrease",
   },
   // Fitness & Nutrition Goals
   {
     id: "get-slim",
-    title: "Get Slim",
-    description: "Achieve healthy BMI through balanced calories and activity",
-    metric: "BMI",
+    goalType: "weight",
+    title: "Weight Goal",
+    description: "Achieve your weight target",
+    metric: "Weight (kg)",
     type: "fitness",
-    targetValue: 22, // Target BMI
-    improvementDirection: "decrease", // For overweight users
-    requiresMetrics: ["bmi", "caloriesIntake", "caloriesBurned", "bmr"],
+    improvementDirection: "decrease",
   },
   {
     id: "build-muscle",
+    goalType: "protein",
     title: "Build Muscle",
-    description: "Gain muscle mass through calorie surplus and protein intake",
-    metric: "Muscle Mass",
+    description: "Gain muscle mass through increased protein intake",
+    metric: "Protein Intake (g)",
     type: "fitness",
-    targetValue: null, // Percentage increase
     improvementDirection: "increase",
-    requiresMetrics: ["caloriesIntake", "proteinIntake", "exerciseIntensity"],
   },
   {
     id: "improve-activity",
+    goalType: "calories_burned",
     title: "Improve Daily Activity",
     description: "Increase weekly calories burned through regular exercise",
     metric: "Weekly Calories Burned",
     type: "fitness",
-    targetValue: 2000, // Target weekly calories
     improvementDirection: "increase",
-    requiresMetrics: ["weeklyCaloriesBurned"],
   },
 ];
 
@@ -190,105 +208,51 @@ const getRecommendations = (goal, status) => {
 const Goals = () => {
   const navigate = useNavigate();
   const [activeGoals, setActiveGoals] = useState([]);
+  const [availableGoalsData, setAvailableGoalsData] = useState([]);
   const [showSuccessModal, setShowSuccessModal] = useState(false);
   const [newlyAddedGoalId, setNewlyAddedGoalId] = useState(null);
   const [showEndGoalModal, setShowEndGoalModal] = useState(false);
   const [goalToEnd, setGoalToEnd] = useState(null);
   const [expandedAccordions, setExpandedAccordions] = useState({});
   const [toastMessage, setToastMessage] = useState(null);
+  const [isLoading, setIsLoading] = useState(true);
   const [assessmentScores, setAssessmentScores] = useState({
     gad7: null,
     phq9: null,
     ghq12: null,
   });
-  const [fitnessMetrics, setFitnessMetrics] = useState({
-    bmi: null,
-    caloriesIntake: null,
-    caloriesBurned: null,
-    weeklyCaloriesBurned: null,
-    bmr: null,
-    proteinIntake: null,
-    exerciseIntensity: null,
-  });
 
-  // Load data from localStorage - reload when component mounts or becomes visible
+  // Load goals and available goals from backend
   useEffect(() => {
-    const loadData = () => {
-      const savedGoals = localStorage.getItem("activeGoals");
-      const savedAssessments = localStorage.getItem("assessmentScores");
-      const savedFitness = localStorage.getItem("fitnessMetrics");
+    const loadGoals = async () => {
+      try {
+        setIsLoading(true);
+        const [goals, availableGoals, assessments] = await Promise.all([
+          getGoals(),
+          getAvailableGoals(),
+          getLatestAssessments().catch(() => ({ gad7: null, phq9: null, ghq12: null }))
+        ]);
 
-      if (savedGoals) {
-        try {
-          const parsed = JSON.parse(savedGoals);
-          setActiveGoals(parsed);
-        } catch (e) {
-          console.error("Error parsing goals:", e);
-        }
-      }
-      if (savedAssessments) {
-        try {
-          setAssessmentScores(JSON.parse(savedAssessments));
-        } catch (e) {
-          console.error("Error parsing assessments:", e);
-        }
-      }
-      if (savedFitness) {
-        try {
-          setFitnessMetrics(JSON.parse(savedFitness));
-        } catch (e) {
-          console.error("Error parsing fitness:", e);
-          // Initialize with default/estimated values if parsing fails
-          setFitnessMetrics({
-            bmi: 22.5,
-            caloriesIntake: 2000,
-            caloriesBurned: 500,
-            weeklyCaloriesBurned: 3500,
-            bmr: 1500,
-            proteinIntake: 50,
-            exerciseIntensity: 3,
-          });
-        }
-      } else {
-        // Initialize with default/estimated values if missing
-        setFitnessMetrics({
-          bmi: 22.5,
-          caloriesIntake: 2000,
-          caloriesBurned: 500,
-          weeklyCaloriesBurned: 3500,
-          bmr: 1500,
-          proteinIntake: 50,
-          exerciseIntensity: 3,
-        });
+        // Filter active goals (not completed)
+        const active = goals.filter(g => g.status !== 'completed');
+        setActiveGoals(active);
+        // availableGoals is already an array from the service
+        setAvailableGoalsData(Array.isArray(availableGoals) ? availableGoals : []);
+        setAssessmentScores(assessments);
+      } catch (error) {
+        console.error("Error loading goals:", error);
+        showToast("Failed to load goals");
+      } finally {
+        setIsLoading(false);
       }
     };
 
-    loadData();
+    loadGoals();
 
-    // Reload when page becomes visible (user navigates back)
-    const handleVisibilityChange = () => {
-      if (!document.hidden) {
-        loadData();
-      }
-    };
-
-    // Also reload on window focus (when user navigates back via browser)
-    const handleFocus = () => {
-      loadData();
-    };
-
-    document.addEventListener("visibilitychange", handleVisibilityChange);
-    window.addEventListener("focus", handleFocus);
-    return () => {
-      document.removeEventListener("visibilitychange", handleVisibilityChange);
-      window.removeEventListener("focus", handleFocus);
-    };
+    // Refresh every 30 seconds to update progress
+    const interval = setInterval(loadGoals, 30000);
+    return () => clearInterval(interval);
   }, []);
-
-  // Save to localStorage
-  useEffect(() => {
-    localStorage.setItem("activeGoals", JSON.stringify(activeGoals));
-  }, [activeGoals]);
 
   // Show toast message
   const showToast = (message) => {
@@ -296,106 +260,56 @@ const Goals = () => {
     setTimeout(() => setToastMessage(null), 3000);
   };
 
-  // Get current metric value for a goal
-  const getCurrentMetricValue = (goal) => {
-    switch (goal.metric) {
-      case "GAD-7":
-        return assessmentScores.gad7 ?? 10;
-      case "PHQ-9":
-        return assessmentScores.phq9 ?? 10;
-      case "GHQ-12":
-        return assessmentScores.ghq12 ?? 8;
-      case "BMI":
-        return fitnessMetrics.bmi ?? 22.5;
-      case "Weekly Calories Burned":
-        return fitnessMetrics.weeklyCaloriesBurned ?? 3500;
-      case "Muscle Mass":
-        return (
-          (fitnessMetrics.exerciseIntensity ?? 3) * 10 +
-          (fitnessMetrics.proteinIntake ?? 50) / 5
-        );
-      default:
-        return 0;
-    }
-  };
-
-  // Calculate goal progress
-  const calculateProgress = (goal) => {
-    const current = getCurrentMetricValue(goal);
-    const baseline = goal.baselineValue ?? current;
-    const target = goal.targetValue;
-
-    if (!baseline || !target) return 0;
-
-    if (goal.improvementDirection === "decrease") {
-      const totalChange = baseline - target;
-      const currentChange = baseline - current;
-      if (totalChange <= 0) return 100;
-      return Math.min(100, Math.max(0, (currentChange / totalChange) * 100));
-    } else {
-      const totalChange = target - baseline;
-      const currentChange = current - baseline;
-      if (totalChange <= 0) return 100;
-      return Math.min(100, Math.max(0, (currentChange / totalChange) * 100));
-    }
-  };
-
-  // Get goal status
+  // Get goal status from backend data
   const getGoalStatus = (goal) => {
-    const progress = calculateProgress(goal);
-    const current = getCurrentMetricValue(goal);
-    const baseline = goal.baselineValue ?? current;
-
-    if (progress >= 100) {
+    if (goal.status === "completed") {
       return { status: "completed", color: "green", text: "Completed" };
     }
-
-    const change = current - baseline;
-    if (goal.improvementDirection === "decrease") {
-      if (change < -2) {
-        return { status: "improving", color: "green", text: "Improving" };
-      } else if (change > 2) {
-        return { status: "regressing", color: "red", text: "Regressing" };
-      }
-    } else {
-      if (change > 2) {
-        return { status: "improving", color: "green", text: "Improving" };
-      } else if (change < -2) {
-        return { status: "regressing", color: "red", text: "Regressing" };
-      }
+    if (goal.status === "almost_done") {
+      return { status: "improving", color: "green", text: "Almost Done" };
     }
-
-    return { status: "stable", color: "yellow", text: "Stable" };
+    if (goal.status === "in_progress") {
+      return { status: "in_progress", color: "blue", text: "In Progress" };
+    }
+    return { status: "not_started", color: "gray", text: "Not Started" };
   };
 
   // Start a goal
-  const handleStartGoal = (goalId) => {
-    // Check for duplicates
-    if (activeGoals.some((g) => g.id === goalId)) {
-      showToast("This goal is already active");
-      return;
+  const handleStartGoal = async (goalIdOrType) => {
+    try {
+      // Find goal from available goals data (from backend)
+      const goal = availableGoalsData.find((g) => g.id === goalIdOrType || g.goalType === goalIdOrType);
+      if (!goal) {
+        showToast("Goal not found");
+        return;
+      }
+
+      // Check if already active
+      if (activeGoals.some((g) => g.goalType === goal.goalType && g.status !== 'completed')) {
+        showToast("This goal is already active");
+        return;
+      }
+
+      const newGoal = await startGoal(goal.goalType, goal.improvementDirection);
+      setActiveGoals([...activeGoals, newGoal]);
+      setNewlyAddedGoalId(goal.id || goal.goalType);
+      setShowSuccessModal(true);
+      
+      // Refresh available goals
+      const available = await getAvailableGoals();
+      setAvailableGoalsData(Array.isArray(available) ? available : []);
+    } catch (error) {
+      console.error("Error starting goal:", error);
+      showToast(error.message || "Failed to start goal");
     }
-
-    const goal = AVAILABLE_GOALS.find((g) => g.id === goalId);
-    if (!goal) return;
-
-    const currentValue = getCurrentMetricValue(goal);
-    const newGoal = {
-      ...goal,
-      baselineValue: currentValue,
-      startDate: new Date().toISOString(),
-      status: "active",
-    };
-
-    setActiveGoals([...activeGoals, newGoal]);
-    setNewlyAddedGoalId(goalId);
-    setShowSuccessModal(true);
   };
 
-  // Handle modal navigation
+  // Handle modal navigation - just close modal and stay on goals page
   const handleViewProgress = () => {
     setShowSuccessModal(false);
-    navigate(`/dashboard/goals/${newlyAddedGoalId}`);
+    setNewlyAddedGoalId(null);
+    // Scroll to top to show the newly added goal in active goals section
+    window.scrollTo({ top: 0, behavior: 'smooth' });
   };
 
   const handleAddAnotherGoal = () => {
@@ -409,37 +323,26 @@ const Goals = () => {
     setShowEndGoalModal(true);
   };
 
-  const handleConfirmEndGoal = () => {
+  // Handle end goal (for now, just remove from active list - backend doesn't have delete endpoint)
+  const handleConfirmEndGoal = async () => {
     if (goalToEnd) {
-      // Archive goal instead of deleting
-      const goal = activeGoals.find((g) => g.id === goalToEnd);
-      if (goal) {
-        const archivedGoals = JSON.parse(localStorage.getItem("archivedGoals") || "[]");
-        archivedGoals.push({
-          ...goal,
-          endDate: new Date().toISOString(),
-          status: "archived",
-        });
-        localStorage.setItem("archivedGoals", JSON.stringify(archivedGoals));
-      }
-      setActiveGoals(activeGoals.filter((g) => g.id !== goalToEnd));
+      // For now, we'll just filter it out from the active list
+      // In a full implementation, you'd call an API to end the goal
+      setActiveGoals(activeGoals.filter((g) => (g._id || g.id) !== goalToEnd));
     }
     setShowEndGoalModal(false);
     setGoalToEnd(null);
   };
 
-  // Toggle accordion
-  const toggleAccordion = (goalId) => {
-    setExpandedAccordions((prev) => ({
-      ...prev,
-      [goalId]: !prev[goalId],
-    }));
+  // Get all available goals from backend data (show all, disable if can't start)
+  const getAvailableGoalsList = () => {
+    // Return all goals from backend, they will be shown with disabled buttons if can't start
+    return availableGoalsData;
   };
 
-  // Get available goals (not started)
-  const getAvailableGoals = () => {
-    const activeIds = activeGoals.map((g) => g.id);
-    return AVAILABLE_GOALS.filter((g) => !activeIds.includes(g.id));
+  // Check if any required base values are missing
+  const hasMissingBaseValues = () => {
+    return availableGoalsData.some(goal => !goal.hasBaseValue);
   };
 
   return (
@@ -464,16 +367,18 @@ const Goals = () => {
               </h2>
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                 {activeGoals.map((goal) => {
-                  const progress = calculateProgress(goal);
+                  const progress = goal.progress || 0;
                   const status = getGoalStatus(goal);
-                  const current = getCurrentMetricValue(goal);
-                  const baseline = goal.baselineValue ?? current;
-                  const recommendations = getRecommendations(goal, status);
-                  const isExpanded = expandedAccordions[goal.id];
+                  const current = goal.currentValue || 0;
+                  const baseline = goal.baseValue || 0;
+                  const goalId = GOAL_TYPE_TO_ID[goal.goalType] || goal.goalType;
+                  const goalDef = AVAILABLE_GOALS.find(g => g.id === goalId) || goal;
+                  const recommendations = getRecommendations(goalDef, status);
+                  const isExpanded = expandedAccordions[goal._id || goal.id];
 
                   return (
                     <div
-                      key={goal.id}
+                      key={goal._id || goal.id}
                       className="bg-white rounded-xl shadow-sm p-5 border border-gray-100"
                     >
                       {/* Header Row */}
@@ -491,6 +396,8 @@ const Goals = () => {
                               ? "bg-green-100 text-green-700"
                               : status.status === "regressing"
                               ? "bg-red-100 text-red-700"
+                              : status.status === "in_progress"
+                              ? "bg-blue-100 text-blue-700"
                               : "bg-yellow-100 text-yellow-700"
                           }`}
                         >
@@ -525,7 +432,7 @@ const Goals = () => {
                                   ? "#10b981"
                                   : status.status === "regressing"
                                   ? "#ef4444"
-                                  : "#f59e0b"
+                                  : "#3b82f6"
                               }
                               strokeWidth="6"
                               fill="none"
@@ -552,7 +459,8 @@ const Goals = () => {
                       <div className="text-center text-sm text-gray-700 mb-4 pb-4 border-b border-gray-100">
                         <p className="font-medium">
                           Baseline: <span className="text-gray-600">{baseline.toFixed(1)}</span> → Current:{" "}
-                          <span className="text-gray-800 font-semibold">{current.toFixed(1)}</span>
+                          <span className="text-gray-800 font-semibold">{current.toFixed(1)}</span> → Target:{" "}
+                          <span className="text-blue-600 font-semibold">{goal.targetValue?.toFixed(1)}</span>
                         </p>
                       </div>
 
@@ -560,7 +468,7 @@ const Goals = () => {
                       {recommendations.length > 0 && (
                         <div className="mb-4">
                           <button
-                            onClick={() => toggleAccordion(goal.id)}
+                            onClick={() => toggleAccordion(goal._id || goal.id)}
                             className="w-full flex items-center justify-between p-3 bg-gray-50 hover:bg-gray-100 rounded-lg transition-colors"
                           >
                             <div className="flex items-center gap-2">
@@ -592,18 +500,43 @@ const Goals = () => {
 
                       {/* Actions Row */}
                       <div className="flex items-center gap-2 mt-4">
-                        <button
-                          onClick={() => handleEndGoalClick(goal.id)}
-                          className="flex-1 border-2 border-gray-300 text-gray-700 hover:bg-gray-50 px-4 py-2 rounded-lg text-sm font-semibold transition-colors"
-                        >
-                          End Goal
-                        </button>
-                        <button
-                          onClick={() => navigate(`/dashboard/goals/${goal.id}`)}
-                          className="flex-1 bg-blue-500 hover:bg-blue-600 text-white px-4 py-2 rounded-lg text-sm font-semibold transition-colors"
-                        >
-                          View Progress
-                        </button>
+                        {goal.status === 'completed' ? (
+                          <button
+                            onClick={async () => {
+                              try {
+                                await restartGoal(goal._id);
+                                // Refresh goals
+                                const goals = await getGoals();
+                                setActiveGoals(goals.filter(g => g.status !== 'completed'));
+                                const available = await getAvailableGoals();
+                                setAvailableGoalsData(available);
+                              } catch (error) {
+                                showToast(error.message || "Failed to restart goal");
+                              }
+                            }}
+                            className="flex-1 bg-blue-500 hover:bg-blue-600 text-white px-4 py-2 rounded-lg text-sm font-semibold transition-colors"
+                          >
+                            Restart Goal
+                          </button>
+                        ) : (
+                          <>
+                            <button
+                              onClick={() => handleEndGoalClick(goal._id || goal.id)}
+                              className="flex-1 border-2 border-gray-300 text-gray-700 hover:bg-gray-50 px-4 py-2 rounded-lg text-sm font-semibold transition-colors"
+                            >
+                              End Goal
+                            </button>
+                            <button
+                              onClick={() => {
+                                // Scroll to top to show goal details - goal is already visible on this page
+                                window.scrollTo({ top: 0, behavior: 'smooth' });
+                              }}
+                              className="flex-1 bg-blue-500 hover:bg-blue-600 text-white px-4 py-2 rounded-lg text-sm font-semibold transition-colors"
+                            >
+                              View Progress
+                            </button>
+                          </>
+                        )}
                       </div>
                     </div>
                   );
@@ -617,61 +550,75 @@ const Goals = () => {
             <h2 className="text-xl font-semibold text-gray-800 mb-4">
               Available Goals
             </h2>
-            {getAvailableGoals().length === 0 ? (
+            {isLoading ? (
               <div className="bg-white rounded-xl p-8 text-center shadow-sm">
-                <p className="text-gray-500">
-                  All available goals have been started.
-                </p>
+                <p className="text-gray-500">Loading goals...</p>
               </div>
             ) : (
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                {getAvailableGoals().map((goal) => (
-                  <div
-                    key={goal.id}
-                    className="bg-white rounded-xl shadow-sm p-5 border border-gray-100 hover:shadow-md transition-shadow"
-                  >
-                    <div className="flex items-start gap-3 mb-4">
-                      <div className="w-12 h-12 bg-blue-100 rounded-lg flex items-center justify-center flex-shrink-0">
-                        <Target className="text-blue-600" size={24} />
+                {getAvailableGoalsList().map((goal) => {
+                  const isDisabled = !goal.canStart;
+                  const disabledReason = goal.hasActiveGoal 
+                    ? "Already active" 
+                    : !goal.hasBaseValue 
+                    ? "Missing base value" 
+                    : "";
+                  
+                  return (
+                    <div
+                      key={goal.id || goal.goalType}
+                      className={`bg-white rounded-xl shadow-sm p-5 border border-gray-100 transition-shadow ${
+                        isDisabled ? 'opacity-75' : 'hover:shadow-md'
+                      }`}
+                    >
+                      <div className="flex items-start gap-3 mb-4">
+                        <div className="w-12 h-12 bg-blue-100 rounded-lg flex items-center justify-center flex-shrink-0">
+                          <Target className="text-blue-600" size={24} />
+                        </div>
+                        <div className="flex-1">
+                          <h3 className="text-lg font-semibold text-gray-800 mb-1">
+                            {goal.title}
+                          </h3>
+                          <p className="text-sm text-gray-600">{goal.description}</p>
+                        </div>
                       </div>
-                      <div className="flex-1">
-                        <h3 className="text-lg font-semibold text-gray-800 mb-1">
-                          {goal.title}
-                        </h3>
-                        <p className="text-sm text-gray-600">{goal.description}</p>
+                      <div className="mb-4">
+                        <span
+                          className={`inline-block px-2 py-1 rounded text-xs font-medium ${
+                            goal.type === "mental"
+                              ? "bg-purple-100 text-purple-700"
+                              : "bg-green-100 text-green-700"
+                          }`}
+                        >
+                          {goal.metric}
+                        </span>
                       </div>
-                    </div>
-                    <div className="mb-4">
-                      <span
-                        className={`inline-block px-2 py-1 rounded text-xs font-medium ${
-                          goal.type === "mental"
-                            ? "bg-purple-100 text-purple-700"
-                            : "bg-green-100 text-green-700"
+                      {isDisabled && disabledReason && (
+                        <p className="text-xs text-gray-500 mb-2">{disabledReason}</p>
+                      )}
+                      <button
+                        onClick={() => handleStartGoal(goal.id || goal.goalType)}
+                        disabled={isDisabled}
+                        className={`w-full py-2 px-4 rounded-lg font-semibold transition-colors ${
+                          isDisabled
+                            ? "bg-gray-300 text-gray-500 cursor-not-allowed"
+                            : "bg-blue-500 hover:bg-blue-600 text-white"
                         }`}
                       >
-                        {goal.metric}
-                      </span>
+                        Start Goal
+                      </button>
                     </div>
-                    <button
-                      onClick={() => handleStartGoal(goal.id)}
-                      className="w-full bg-blue-500 hover:bg-blue-600 text-white py-2 px-4 rounded-lg font-semibold transition-colors"
-                    >
-                      Start Goal
-                    </button>
-                  </div>
-                ))}
+                  );
+                })}
               </div>
             )}
           </div>
 
           {/* Missing Data Note */}
-          {(Object.values(assessmentScores).every((v) => v === null) ||
-            Object.values(fitnessMetrics).some((v) => v === null)) && (
+          {hasMissingBaseValues() && (
             <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4">
               <p className="text-sm text-yellow-800">
-                <strong>Note:</strong> Some values are estimated due to missing
-                data. Complete assessments and track fitness metrics for more
-                accurate goal tracking.
+                <strong>Note:</strong> Please add or update your weight, assessments, nutrition, or activity values to accurately start and track your goals.
               </p>
             </div>
           )}

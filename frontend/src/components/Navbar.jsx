@@ -98,7 +98,7 @@ const Navbar = ({ userName, activePage = "dashboard", onToggleSidebar }) => {
           ref={dropdownRef}
         >
           {/* Notification Component */}
-          <Notifications />
+          <Notifications onOpenSettings={() => setSettingsOpen(true)} navigate={(t) => { if (t) window.location.href = t; }} />
 
           {/* User Avatar & Name */}
           <div

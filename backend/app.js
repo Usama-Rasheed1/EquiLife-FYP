@@ -63,4 +63,17 @@ try {
 }
 
 
+// Goals and Assessments routes
+const goalRoutes = require('./routes/goalRoutes');
+const assessmentRoutes = require('./routes/assessmentRoutes');
+app.use('/api/goals', goalRoutes);
+app.use('/api/assessments', assessmentRoutes);
+
+// Notifications
+const notificationRoutes = require('./routes/notificationRoutes');
+app.use('/api/notifications', notificationRoutes);
+// simple ping for debugging routing/proxy issues
+app.get('/api/notifications/ping', (req, res) => res.json({ ok: true, ts: Date.now() }));
+console.log('Notification routes mounted at /api/notifications');
+
 module.exports = app;

@@ -1,8 +1,8 @@
-import { Navigate, useParams } from "react-router-dom";
+import { Navigate } from "react-router-dom";
 
 const GoalRedirect = () => {
-  const { goalId } = useParams();
-  return <Navigate to={`/dashboard/goals/${goalId}`} replace />;
+  // Redirect all goal detail pages back to the main goals page
+  return <Navigate to="/dashboard/goals" replace />;
 };
 
 export default GoalRedirect;
