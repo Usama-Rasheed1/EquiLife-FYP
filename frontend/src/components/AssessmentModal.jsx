@@ -2,6 +2,7 @@ import React, { useState, useEffect } from "react";
 import AppModal from "./AppModal";
 import { ChevronLeft, ChevronRight } from "lucide-react";
 import SuggestionModal from "./suggestionModal";
+import { submitAssessment } from "../services/assessmentService";
 
 // Assessment question data
 const assessmentData = {
@@ -105,7 +106,7 @@ const AssessmentModal = ({ isOpen, onClose, testId }) => {
     }
   };
 
-  const handleCalculateResults = () => {
+  const handleCalculateResults = async () => {
     // Check if all questions are answered
     const allAnswered = testData.questions.every(
       (_, index) => answers[index] !== undefined
@@ -177,6 +178,14 @@ const AssessmentModal = ({ isOpen, onClose, testId }) => {
       message,
     });
     setShowResults(true);
+
+    // Submit assessment to backend
+    try {
+      await submitAssessment(testId, totalScore, severity, Object.values(answers));
+    } catch (error) {
+      console.error('Error submitting assessment:', error);
+      // Don't block the UI if submission fails
+    }
   };
 
   const handleEndTest = () => {

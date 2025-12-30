@@ -35,8 +35,8 @@ function App() {
         <Route path="/dashboard/community" element={<Community />} />
         <Route path="/dashboard/gamification" element={<Gamification />} />
         <Route path="/dashboard/goals" element={<Goals />} />
-        <Route path="/dashboard/goals/:goalId" element={<GoalProgress />} />
-        {/* Redirect old /goals/:goalId paths to /dashboard/goals/:goalId */}
+        {/* Redirect any goal detail page back to goals list */}
+        <Route path="/dashboard/goals/:goalId" element={<GoalRedirect />} />
         <Route path="/goals/:goalId" element={<GoalRedirect />} />
 
 

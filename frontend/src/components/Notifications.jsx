@@ -1,35 +1,28 @@
 import React, { useState, useRef, useEffect } from "react";
 import { Bell } from "lucide-react";
+import axios from "axios";
 
-const dummyNotifications = [
-  {
-    id: 1,
-    title: "New Message",
-    description: "You received a new message in Fit Focus...",
-    img: "https://via.placeholder.com/40",
-  },
-  {
-    id: 2,
-    title: "Workout Reminder",
-    description: "Don't forget to log today's exercise...",
-    img: "https://via.placeholder.com/40",
-  },
-  {
-    id: 3,
-    title: "Assessment Alert",
-    description: "Your weekly mental health assessment is pending...",
-    img: "https://via.placeholder.com/40",
-  },
-];
-
-const Notifications = ({ className = "" }) => {
+const Notifications = ({ className = "", onOpenSettings, navigate }) => {
   const [isOpen, setIsOpen] = useState(false);
-  const [notifications, setNotifications] = useState(dummyNotifications);
+  const [notifications, setNotifications] = useState([]);
+  const [unreadCount, setUnreadCount] = useState(0);
 
   const dropdownRef = useRef();
 
-  // Toggle dropdown
-  const toggleDropdown = () => setIsOpen(!isOpen);
+  const load = async () => {
+    try {
+      const token = localStorage.getItem('authToken');
+      if (!token) return;
+      const url = `${import.meta.env.VITE_BACKEND_BASE_URL}/api/notifications`;
+      const res = await axios.get(url, { headers: { Authorization: `Bearer ${token}` } });
+      setNotifications(res.data.notifications || []);
+      setUnreadCount(res.data.unreadCount || 0);
+    } catch (err) {
+      // ignore network errors, fallback to empty list
+    }
+  };
+
+  useEffect(() => { load(); }, []);
 
   // Close when clicking outside
   useEffect(() => {
@@ -46,7 +39,39 @@ const Notifications = ({ className = "" }) => {
     return () => document.removeEventListener("mousedown", handleClickOutside);
   }, [isOpen]);
 
-  const unreadCount = notifications.length;
+  const toggleDropdown = () => {
+    setIsOpen(!isOpen);
+    if (!isOpen) load();
+  };
+
+  // cap/unopened display requirement: show numeric up to 3
+  const badgeText = unreadCount <= 3 ? String(unreadCount) : (unreadCount > 0 ? '3+' : '');
+
+  const handleClickNotification = async (note) => {
+    try {
+      const token = localStorage.getItem('authToken');
+      if (token) {
+        await axios.post(`${import.meta.env.VITE_BACKEND_BASE_URL}/api/notifications/${note._id}/read`, {}, { headers: { Authorization: `Bearer ${token}` } });
+      }
+    } catch (err) {
+      // ignore
+    }
+
+    // perform action
+    if (note.action) {
+      if (note.action.name === 'open_settings' && typeof onOpenSettings === 'function') {
+        onOpenSettings();
+      } else if (note.action.name === 'open_fitness' && typeof navigate === 'function') {
+        navigate(note.action.target || '/fitness');
+      } else if (note.action.name === 'open_assessment' && typeof navigate === 'function') {
+        navigate(note.action.target || '/assessment');
+      }
+    }
+
+    // optimistic update UI
+    setNotifications((prev) => prev.map(n => n._id === note._id ? { ...n, isRead: true } : n));
+    setUnreadCount(c => Math.max(0, c - (note.isRead ? 0 : 1)));
+  };
 
   return (
     <div className={`relative ${className}`} ref={dropdownRef}>
@@ -59,7 +84,7 @@ const Notifications = ({ className = "" }) => {
         <Bell className="h-6 w-6 text-white" />
         {unreadCount > 0 && (
           <span className="absolute -top-1 -right-1 bg-red-600 text-white text-xs font-semibold px-1.5 py-0.5 rounded-full min-w-[18px] text-center">
-            {unreadCount > 99 ? "99+" : unreadCount}
+            {badgeText}
           </span>
         )}
       </button>
@@ -85,20 +110,19 @@ const Notifications = ({ className = "" }) => {
             <ul className="divide-y divide-gray-100">
               {notifications.map((note) => (
                 <li
-                  key={note.id}
-                  className="flex items-start gap-3 p-3 hover:bg-gray-50 cursor-pointer transition-colors"
+                  key={note._id}
+                  onClick={() => handleClickNotification(note)}
+                  className={`flex items-start gap-3 p-3 hover:bg-gray-50 cursor-pointer transition-colors ${note.isRead ? 'opacity-60' : ''}`}
                 >
-                  <img
-                    src={note.img}
-                    alt={note.title}
-                    className="w-10 h-10 rounded-full object-cover flex-shrink-0"
-                  />
+                  <div className="w-10 h-10 rounded-full bg-blue-100 flex items-center justify-center text-blue-600 font-semibold flex-shrink-0">
+                    {note.title ? note.title.charAt(0) : 'N'}
+                  </div>
                   <div className="flex-1 min-w-0">
                     <p className="text-sm font-medium text-gray-900 truncate">
                       {note.title}
                     </p>
                     <p className="text-xs text-gray-500 truncate mt-0.5">
-                      {note.description}
+                      {note.message}
                     </p>
                   </div>
                 </li>

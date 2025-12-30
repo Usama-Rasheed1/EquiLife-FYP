@@ -1,6 +1,7 @@
 const ExercisePredefined = require('../models/ExercisePredefined');
 const ExerciseCustom = require('../models/ExerciseCustom');
 const ExerciseLog = require('../models/ExerciseLog');
+const goalController = require('./goalController');
 
 // Helper: Get Monday of the week for a given date
 const getWeekStart = (dateStr) => {
@@ -213,6 +214,12 @@ exports.addExerciseLog = async (req, res) => {
 
       existingLog.caloriesBurned = Math.round((existingLog.caloriesBurned + additionalCalories) * 10) / 10;
       const saved = await existingLog.save();
+      
+      // Update goal progress for calories_burned goals
+      goalController.updateProgressForGoalType(req.user.id, 'calories_burned').catch(err => {
+        console.error('Error updating calories_burned goal progress:', err);
+      });
+      
       return res.status(200).json({ ...saved.toObject(), wasIncremented: true });
     }
 
@@ -236,6 +243,12 @@ exports.addExerciseLog = async (req, res) => {
     });
 
     const saved = await log.save();
+    
+    // Update goal progress for calories_burned goals
+    goalController.updateProgressForGoalType(req.user.id, 'calories_burned').catch(err => {
+      console.error('Error updating calories_burned goal progress:', err);
+    });
+    
     return res.status(201).json({ ...saved.toObject(), wasIncremented: false });
   } catch (err) {
     // Duplicate key error from unique index (shouldn't happen now, but keep as fallback)

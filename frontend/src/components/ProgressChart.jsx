@@ -16,8 +16,8 @@ const ProgressChart = () => {
   <h3 className="text-lg font-semibold text-gray-800 mb-3">Progress</h3>
       
       <div className="h-64 mb-4 flex items-center justify-center">
-        <div className="rounded-full">
-          <ResponsiveContainer width={220} height={220}>
+        <div className="rounded-full" style={{ width: 220, height: 220 }}>
+          <ResponsiveContainer width="100%" height="100%">
             <PieChart>
               <Pie
                 data={data}

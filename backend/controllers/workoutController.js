@@ -4,6 +4,7 @@ const WorkoutLog = require('../models/WorkoutLog');
 const WorkoutItem = require('../models/WorkoutItem');
 const WeeklyLog = require('../models/WeeklyLog');
 const mongoose = require('mongoose');
+const goalController = require('./goalController');
 
 // List all predefined workouts
 exports.getPredefinedWorkouts = async (req, res) => {
@@ -164,6 +165,11 @@ exports.logWorkoutSnapshot = async (req, res) => {
 
     await WeeklyLog.updateOne({ _id: weekly._id }, inc);
 
+    // Update goal progress for calories_burned goals
+    goalController.updateProgressForGoalType(userId, 'calories_burned').catch(err => {
+      console.error('Error updating calories_burned goal progress:', err);
+    });
+
     return res.status(201).json({ workoutItem: saved.toObject(), weeklyLog: await WeeklyLog.findById(weekly._id).lean() });
   } catch (err) {
     console.error('logWorkoutSnapshot error', err);
@@ -233,6 +239,11 @@ exports.updateWorkoutItem = async (req, res) => {
 
     const deltaC = newCalories - oldCalories;
     await WeeklyLog.updateOne({ _id: item.weeklyLogId }, { $inc: { totalCalories: deltaC, totalMinutes: incMinutes, totalReps: incReps } });
+
+    // Update goal progress for calories_burned goals
+    goalController.updateProgressForGoalType(userId, 'calories_burned').catch(err => {
+      console.error('Error updating calories_burned goal progress:', err);
+    });
 
     const weekly = await WeeklyLog.findById(item.weeklyLogId).lean();
     return res.json({ workoutItem: item.toObject(), weeklyLog: weekly });

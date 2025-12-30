@@ -2,6 +2,7 @@ const Food = require('../models/Food');
 const DailyLog = require('../models/DailyLog');
 const MealItem = require('../models/MealItem');
 const mongoose = require('mongoose');
+const goalController = require('./goalController');
 
 // Helper to find or create daily log
 async function findOrCreateDailyLog(userId, date) {
@@ -63,6 +64,11 @@ exports.logMeal = async (req, res) => {
       { $inc: inc },
       { new: true }
     ).lean();
+
+    // Update goal progress for protein goals
+    goalController.updateProgressForGoalType(userId, 'protein').catch(err => {
+      console.error('Error updating protein goal progress:', err);
+    });
 
     return res.status(201).json({ dailyLog: updatedDaily, mealItem: mealItem.toObject() });
   } catch (err) {
@@ -174,6 +180,11 @@ exports.getHistory = async (req, res) => {
         const updatedMealItem = await MealItem.findByIdAndUpdate(mealItemId, { $set: { quantity: newQty } }, { new: true }).lean();
         const updatedDaily = await DailyLog.findByIdAndUpdate(dailyLog._id, { $inc: inc }, { new: true }).lean();
 
+        // Update goal progress for protein goals
+        goalController.updateProgressForGoalType(userId, 'protein').catch(err => {
+          console.error('Error updating protein goal progress:', err);
+        });
+
         return res.json({ mealItem: updatedMealItem, dailyLog: updatedDaily });
       } catch (err) {
         console.error('updateMeal error', err);
@@ -207,6 +218,11 @@ exports.getHistory = async (req, res) => {
         // Delete meal item and update daily totals
         await MealItem.findByIdAndDelete(mealItemId);
         const updatedDaily = await DailyLog.findByIdAndUpdate(dailyLog._id, { $inc: dec }, { new: true }).lean();
+
+        // Update goal progress for protein goals
+        goalController.updateProgressForGoalType(userId, 'protein').catch(err => {
+          console.error('Error updating protein goal progress:', err);
+        });
 
         return res.json({ dailyLog: updatedDaily });
       } catch (err) {
