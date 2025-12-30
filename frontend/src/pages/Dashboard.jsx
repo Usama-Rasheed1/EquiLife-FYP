@@ -17,7 +17,7 @@ const DashboardLayout = () => {
   useEffect(() => {
     const fetchUserData = async () => {
       try {
-        const token = localStorage.getItem('authToken');
+        const token = localStorage.getItem("authToken");
         if (!token) {
           setLoading(false);
           return;
@@ -30,7 +30,7 @@ const DashboardLayout = () => {
 
         setUserData(response.data?.user);
       } catch (err) {
-        console.error('Error fetching user data:', err);
+        console.error("Error fetching user data:", err);
       } finally {
         setLoading(false);
       }

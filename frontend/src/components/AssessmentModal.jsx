@@ -2,70 +2,57 @@ import React, { useState, useEffect } from "react";
 import AppModal from "./AppModal";
 import { ChevronLeft, ChevronRight } from "lucide-react";
 import SuggestionModal from "./suggestionModal";
+import assessmentService from "../services/assessmentService";
 
-// Assessment question data
-const assessmentData = {
-  gad7: {
-    name: "GAD-7 (Anxiety Assessment)",
-    questions: [
-      "Feeling nervous, anxious, or on edge",
-      "Not being able to stop or control worrying",
-      "Worrying too much about different things",
-      "Trouble relaxing",
-      "Being so restless that it is hard to sit still",
-      "Becoming easily annoyed or irritable",
-      "Feeling afraid, as if something awful might happen",
-    ],
-    options: [
-      "Not at all",
-      "Several days",
-      "More than half the days",
-      "Nearly every day",
-    ],
-  },
-  phq9: {
-    name: "PHQ-9 (Depression Assessment)",
-    questions: [
-      "Little interest or pleasure in doing things",
-      "Feeling down, depressed, or hopeless",
-      "Trouble falling or staying asleep, or sleeping too much",
-      "Feeling tired or having little energy",
-      "Poor appetite or overeating",
-      "Feeling bad about yourself or that you are a failure or have let yourself or your family down",
-      "Trouble concentrating on things, such as reading the newspaper or watching television",
-      "Moving or speaking so slowly that other people could have noticed. Or the opposite—being so fidgety or restless that you have been moving around a lot more than usual",
-      "Thoughts that you would be better off dead, or of hurting yourself",
-    ],
-    options: [
-      "Not at all",
-      "Several days",
-      "More than half the days",
-      "Nearly every day",
-    ],
-  },
-  ghq12: {
-    name: "GHQ-12 (General Health Questionnaire)",
-    questions: [
-      "Been able to concentrate on whatever you're doing",
-      "Lost much sleep over worry",
-      "Felt that you are playing a useful part in things",
-      "Felt capable of making decisions about things",
-      "Felt constantly under strain",
-      "Felt you couldn't overcome your difficulties",
-      "Been able to enjoy your normal day-to-day activities",
-      "Been able to face up to your problems",
-      "Been feeling unhappy or depressed",
-      "Been losing confidence in yourself",
-      "Been thinking of yourself as a worthless person",
-      "Been feeling reasonably happy, all things considered",
-    ],
-    options: [
-      "Better than usual",
-      "Same as usual",
-      "Less than usual",
-      "Much less than usual",
-    ],
-  },
+const getSeverityInfo = (assessmentName, totalScore) => {
+  let severity = "";
+  let message = "";
+
+  if (assessmentName === "GAD-7") {
+    if (totalScore <= 4) {
+      severity = "Minimal";
+      message = "Your anxiety levels appear to be minimal.";
+    } else if (totalScore <= 9) {
+      severity = "Mild";
+      message = "You may be experiencing mild anxiety. Consider self-care strategies.";
+    } else if (totalScore <= 14) {
+      severity = "Moderate";
+      message = "You may be experiencing moderate anxiety. Consider speaking with a healthcare provider.";
+    } else {
+      severity = "Severe";
+      message = "You may be experiencing severe anxiety. We recommend speaking with a mental health professional.";
+    }
+  } else if (assessmentName === "PHQ-9") {
+    if (totalScore <= 4) {
+      severity = "Minimal";
+      message = "Your depression symptoms appear to be minimal.";
+    } else if (totalScore <= 9) {
+      severity = "Mild";
+      message = "You may be experiencing mild depression. Consider self-care strategies.";
+    } else if (totalScore <= 14) {
+      severity = "Moderate";
+      message = "You may be experiencing moderate depression. Consider speaking with a healthcare provider.";
+    } else if (totalScore <= 19) {
+      severity = "Moderately Severe";
+      message = "You may be experiencing moderately severe depression. We recommend speaking with a mental health professional.";
+    } else {
+      severity = "Severe";
+      message = "You may be experiencing severe depression. Please seek professional help as soon as possible.";
+    }
+  } else if (assessmentName === "GHQ-12") {
+    if (totalScore <= 12) {
+      severity = "Low";
+      message = "Your psychological distress levels appear to be low.";
+    } else if (totalScore <= 20) {
+      severity = "Moderate";
+      message = "You may be experiencing moderate psychological distress. Consider self-care strategies.";
+    } else {
+      severity = "High";
+      message = "You may be experiencing high psychological distress. We recommend speaking with a mental health professional.";
+    }
+  }
+
+  return { severity, message };
 };
 
 const AssessmentModal = ({ isOpen, onClose, testId }) => {
@@ -75,21 +62,46 @@ const AssessmentModal = ({ isOpen, onClose, testId }) => {
   const [showResults, setShowResults] = useState(false);
   const [results, setResults] = useState(null);
   const [suggestionsOpen, setSuggestionsOpen] = useState(false);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState(null);
+  const [aiSuggestion, setAiSuggestion] = useState(null);
+  const [aiSuggestionLoading, setAiSuggestionLoading] = useState(false);
+  const [aiSuggestionError, setAiSuggestionError] = useState(null);
 
+  // Fetch assessment questions when modal opens with a testId
   useEffect(() => {
-    if (testId && assessmentData[testId]) {
-      setTestData(assessmentData[testId]);
-      setCurrentQuestion(0);
-      setAnswers({});
-      setShowResults(false);
-      setResults(null);
+    if (isOpen && testId) {
+      loadAssessment(testId);
     }
-  }, [testId]);
+  }, [isOpen, testId]);
 
-  const handleAnswerSelect = (questionIndex, answerIndex) => {
+
+
+  const loadAssessment = async (assessmentId) => {
+    setLoading(true);
+    setError(null);
+    try {
+      // Get assessment data from backend
+      const response = await assessmentService.getAssessmentQuestions(assessmentId);
+      if (response.ok) {
+        setTestData(response.assessment);
+        setCurrentQuestion(0);
+        setAnswers({});
+        setShowResults(false);
+        setResults(null);
+      }
+    } catch (err) {
+      setError("Failed to load assessment. Please try again.");
+      console.error(err);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleAnswerSelect = (questionIndex, optionIndex) => {
     setAnswers((prev) => ({
       ...prev,
-      [questionIndex]: answerIndex,
+      [questionIndex]: optionIndex,
     }));
   };
 
@@ -105,7 +117,7 @@ const AssessmentModal = ({ isOpen, onClose, testId }) => {
     }
   };
 
-  const handleCalculateResults = () => {
+  const handleCalculateResults = async () => {
     // Check if all questions are answered
     const allAnswered = testData.questions.every(
       (_, index) => answers[index] !== undefined
@@ -116,67 +128,27 @@ const AssessmentModal = ({ isOpen, onClose, testId }) => {
       return;
     }
 
-    // Calculate score
-    const totalScore = Object.values(answers).reduce(
-      (sum, answerIndex) => sum + answerIndex,
-      0
-    );
+    setLoading(true);
+    setError(null);
+    try {
+      // Submit assessment to backend
+      const response = await assessmentService.submitAssessment(testData._id, answers);
 
-    // Determine severity (simplified scoring)
-    let severity = "";
-    let message = "";
-
-    if (testId === "gad7") {
-      if (totalScore <= 4) {
-        severity = "Minimal";
-        message = "Your anxiety levels appear to be minimal.";
-      } else if (totalScore <= 9) {
-        severity = "Mild";
-        message = "You may be experiencing mild anxiety. Consider self-care strategies.";
-      } else if (totalScore <= 14) {
-        severity = "Moderate";
-        message = "You may be experiencing moderate anxiety. Consider speaking with a healthcare provider.";
-      } else {
-        severity = "Severe";
-        message = "You may be experiencing severe anxiety. We recommend speaking with a mental health professional.";
+      if (response.ok) {
+        const { result } = response;
+        setResults({
+          score: result.totalScore,
+          severity: result.severityLabel,
+          message: getSeverityInfo(result.assessmentName, result.totalScore).message,
+        });
+        setShowResults(true);
       }
-    } else if (testId === "phq9") {
-      if (totalScore <= 4) {
-        severity = "Minimal";
-        message = "Your depression symptoms appear to be minimal.";
-      } else if (totalScore <= 9) {
-        severity = "Mild";
-        message = "You may be experiencing mild depression. Consider self-care strategies.";
-      } else if (totalScore <= 14) {
-        severity = "Moderate";
-        message = "You may be experiencing moderate depression. Consider speaking with a healthcare provider.";
-      } else if (totalScore <= 19) {
-        severity = "Moderately Severe";
-        message = "You may be experiencing moderately severe depression. We recommend speaking with a mental health professional.";
-      } else {
-        severity = "Severe";
-        message = "You may be experiencing severe depression. Please seek professional help as soon as possible.";
-      }
-    } else if (testId === "ghq12") {
-      if (totalScore <= 12) {
-        severity = "Low";
-        message = "Your psychological distress levels appear to be low.";
-      } else if (totalScore <= 20) {
-        severity = "Moderate";
-        message = "You may be experiencing moderate psychological distress. Consider self-care strategies.";
-      } else {
-        severity = "High";
-        message = "You may be experiencing high psychological distress. We recommend speaking with a mental health professional.";
-      }
+    } catch (err) {
+      setError("Failed to calculate results. Please try again.");
+      console.error(err);
+    } finally {
+      setLoading(false);
     }
-
-    // Store results and show results view
-    setResults({
-      score: totalScore,
-      severity,
-      message,
-    });
-    setShowResults(true);
   };
 
   const handleEndTest = () => {
@@ -184,6 +156,7 @@ const AssessmentModal = ({ isOpen, onClose, testId }) => {
     setResults(null);
     setCurrentQuestion(0);
     setAnswers({});
+    setError(null);
     onClose();
   };
 
@@ -192,32 +165,94 @@ const AssessmentModal = ({ isOpen, onClose, testId }) => {
     setResults(null);
     setCurrentQuestion(0);
     setAnswers({});
+    setError(null);
   };
 
   // Build a short suggestion paragraph based on the assessment and severity
   const generateSuggestionText = (res) => {
     if (!res) return "No suggestion available.";
     const sev = (res.severity || "").toLowerCase();
-    if (testId === "gad7") {
+    const assessmentName = testData?.name || "";
+
+    if (assessmentName === "GAD-7") {
       if (sev.includes("minimal")) return "Your anxiety appears minimal. Keep practicing self-care, maintain routines, and monitor symptoms.";
       if (sev.includes("mild")) return "Mild anxiety noted. Try relaxation techniques, regular exercise, and consider talking to a trusted person or a counselor.";
       if (sev.includes("moderate")) return "Moderate anxiety observed. Consider reaching out to a primary care provider or counselor for further guidance and coping strategies.";
       return "Severe anxiety detected. Please seek professional mental health support promptly, and contact emergency services if you feel unsafe.";
     }
-    if (testId === "phq9") {
+    if (assessmentName === "PHQ-9") {
       if (sev.includes("minimal")) return "Symptoms appear minimal. Maintain social connections, sleep hygiene, and healthy habits.";
       if (sev.includes("mild")) return "Mild depressive symptoms. Consider self-help strategies, routine, and checking in with friends or family.";
       if (sev.includes("moderate")) return "Moderate depression indication. Consider consulting a healthcare professional for assessment and treatment options.";
       if (sev.includes("moderately severe")) return "Moderately severe depression. It's important to contact a mental health professional to discuss treatment and safety planning.";
       return "Severe depression detected. Please seek professional help urgently and contact emergency services if you are at risk.";
     }
-    if (testId === "ghq12") {
+    if (assessmentName === "GHQ-12") {
       if (sev.includes("low")) return "Low psychological distress. Keep using healthy coping strategies and monitor changes.";
       if (sev.includes("moderate")) return "Moderate distress. Consider stress management techniques and talking to a trusted person or counselor.";
       return "High psychological distress. We recommend reaching out to a mental health professional to discuss next steps and support options.";
     }
     return "General suggestion: consider reaching out to a healthcare professional if symptoms persist or worsen.";
   };
+
+  /**
+   * Generate AI-powered suggestion using OpenRouter
+   * Called automatically when assessment results are ready
+   */
+  const generateAiSuggestion = async (res) => {
+    if (!res || !testData) return;
+
+    setAiSuggestionLoading(true);
+    setAiSuggestionError(null);
+    setAiSuggestion(null);
+
+    try {
+      const context = {
+        assessmentType: testData.name,
+        score: res.score,
+        severity: res.severity,
+      };
+
+      const response = await assessmentService.generateSuggestion(context);
+
+      if (response.ok && response.suggestion) {
+        setAiSuggestion(response.suggestion);
+      } else {
+        // Fallback to static suggestion on API error
+        setAiSuggestion(generateSuggestionText(res));
+      }
+    } catch (err) {
+      // Don't show error message, just use fallback
+      // This prevents blocking the main flow
+      setAiSuggestionError(
+        "We couldn't generate a personalized suggestion right now, but here's general guidance:"
+      );
+      setAiSuggestion(generateSuggestionText(res));
+    } finally {
+      setAiSuggestionLoading(false);
+    }
+  };
+
+  // Show loading state
+  if (loading && !testData) {
+    return (
+      <AppModal
+        isOpen={isOpen}
+        onClose={onClose}
+        title="Loading Assessment"
+        closeOnOutsideClick={false}
+      >
+        <div className="flex items-center justify-center py-8">
+          <div className="text-center">
+            <div className="inline-block animate-spin mb-4">
+              <div className="w-8 h-8 border-4 border-blue-200 border-t-blue-600 rounded-full"></div>
+            </div>
+            <p className="text-gray-600">Loading assessment...</p>
+          </div>
+        </div>
+      </AppModal>
+    );
+  }
 
   if (!testData) return null;
 
@@ -238,6 +273,11 @@ const AssessmentModal = ({ isOpen, onClose, testId }) => {
         closeOnOutsideClick={false}
       >
         <div className="space-y-4 sm:space-y-6">
+          {error && (
+            <div className="bg-red-50 border border-red-200 rounded-lg p-3 text-sm text-red-700">
+              {error}
+            </div>
+          )}
           <div className="text-center">
             <div className="mb-4">
               <div className="inline-flex items-center justify-center w-20 h-20 rounded-full bg-blue-100 mb-4">
@@ -271,7 +311,10 @@ const AssessmentModal = ({ isOpen, onClose, testId }) => {
               Test Again
             </button>
             <button
-              onClick={() => setSuggestionsOpen(true)}
+              onClick={() => {
+                setSuggestionsOpen(true);
+                generateAiSuggestion(results);
+              }}
               className="flex-1 px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition-colors font-medium text-sm"
             >
               Suggestions
@@ -282,7 +325,9 @@ const AssessmentModal = ({ isOpen, onClose, testId }) => {
             isOpen={suggestionsOpen}
             onClose={() => setSuggestionsOpen(false)}
             onTestAgain={handleTestAgain}
-            suggestion={generateSuggestionText(results)}
+            suggestion={aiSuggestion || generateSuggestionText(results)}
+            isLoading={aiSuggestionLoading}
+            error={aiSuggestionError}
           />
         </div>
       </AppModal>
@@ -298,6 +343,11 @@ const AssessmentModal = ({ isOpen, onClose, testId }) => {
       closeOnOutsideClick={false}
     >
       <div className="space-y-4 sm:space-y-6">
+        {error && (
+          <div className="bg-red-50 border border-red-200 rounded-lg p-3 text-sm text-red-700">
+            {error}
+          </div>
+        )}
         {/* Progress Indicator */}
         <div className="flex items-center justify-between mb-4">
           <div className="flex-1 bg-gray-200 rounded-full h-2 mr-3">
@@ -316,12 +366,12 @@ const AssessmentModal = ({ isOpen, onClose, testId }) => {
         {/* Question */}
         <div>
           <h3 className="text-base sm:text-lg font-semibold text-gray-900 mb-4">
-            {testData.questions[currentQuestion]}
+            {testData.questions[currentQuestion].questionText}
           </h3>
 
           {/* Answer Options */}
           <div className="space-y-2">
-            {testData.options.map((option, index) => (
+            {testData.questions[currentQuestion].options.map((option, index) => (
               <button
                 key={index}
                 onClick={() => handleAnswerSelect(currentQuestion, index)}
@@ -331,7 +381,7 @@ const AssessmentModal = ({ isOpen, onClose, testId }) => {
                     : "border-gray-300 bg-white text-gray-700 hover:border-gray-400 hover:bg-gray-50"
                 }`}
               >
-                {option}
+                {option.optionText}
               </button>
             ))}
           </div>
@@ -355,14 +405,16 @@ const AssessmentModal = ({ isOpen, onClose, testId }) => {
           {isLastQuestion ? (
             <button
               onClick={handleCalculateResults}
-              disabled={!allQuestionsAnswered}
+              disabled={!allQuestionsAnswered || loading}
               className={`flex items-center gap-2 px-6 py-2 rounded-lg transition-colors font-medium ${
-                allQuestionsAnswered
+                allQuestionsAnswered && !loading
                   ? "bg-blue-500 text-white hover:bg-blue-600"
                   : "bg-gray-300 text-gray-500 cursor-not-allowed"
               }`}
             >
-              <span className="text-sm">Calculate Results</span>
+              <span className="text-sm">
+                {loading ? "Calculating..." : "Calculate Results"}
+              </span>
             </button>
           ) : (
             <button
