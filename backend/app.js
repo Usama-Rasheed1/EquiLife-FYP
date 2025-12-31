@@ -63,11 +63,9 @@ try {
 }
 
 
-// Goals and Assessments routes
+// Goals routes (assessments are already mounted above)
 const goalRoutes = require('./routes/goalRoutes');
-const assessmentRoutes = require('./routes/assessmentRoutes');
 app.use('/api/goals', goalRoutes);
-app.use('/api/assessments', assessmentRoutes);
 
 // Notifications
 const notificationRoutes = require('./routes/notificationRoutes');

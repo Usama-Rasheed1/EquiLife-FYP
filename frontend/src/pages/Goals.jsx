@@ -4,7 +4,7 @@ import Layout from "../components/Layout";
 import AppModal from "../components/AppModal";
 import { Target, TrendingUp, TrendingDown, Minus, CheckCircle2, ChevronDown, ChevronUp, Lightbulb } from "lucide-react";
 import { getGoals, getAvailableGoals, startGoal, restartGoal } from "../services/goalService";
-import { getLatestAssessments } from "../services/assessmentService";
+// import { getLatestAssessments } from "../services/assessmentService";
 
 // Map backend goal types to frontend goal IDs
 const GOAL_TYPE_TO_ID = {
