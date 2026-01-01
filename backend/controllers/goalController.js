@@ -1,8 +1,7 @@
 const Goal = require('../models/Goal');
 const User = require('../models/User');
-const Assessment = require('../models/Assessment');
+const AssessmentResult = require('../models/AssessmentResult');
 const DailyLog = require('../models/DailyLog');
-// const WeeklyLog = require('../models/WeeklyLog');
 const predefinedGoals = require('../data/predefinedGoals');
 
 // Helper function to calculate target value based on goal type and base value
@@ -33,40 +32,40 @@ async function getCurrentValue(userId, goalType) {
     const user = await User.findById(userId).select('weightKg');
     return user?.weightKg || null;
   } else if (goalType === 'gad7') {
-    const assessment = await Assessment.findOne({ userId, assessmentType: 'gad7' })
-      .sort({ submittedAt: -1 })
+    const assessment = await AssessmentResult.findOne({ userId, assessmentName: 'GAD-7' })
+      .sort({ createdAt: -1 })
       .lean();
-    return assessment?.score || null;
+    return assessment?.totalScore || null;
   } else if (goalType === 'phq9') {
-    const assessment = await Assessment.findOne({ userId, assessmentType: 'phq9' })
-      .sort({ submittedAt: -1 })
+    const assessment = await AssessmentResult.findOne({ userId, assessmentName: 'PHQ-9' })
+      .sort({ createdAt: -1 })
       .lean();
-    return assessment?.score || null;
+    return assessment?.totalScore || null;
   } else if (goalType === 'ghq12') {
-    const assessment = await Assessment.findOne({ userId, assessmentType: 'ghq12' })
-      .sort({ submittedAt: -1 })
+    const assessment = await AssessmentResult.findOne({ userId, assessmentName: 'GHQ-12' })
+      .sort({ createdAt: -1 })
       .lean();
-    return assessment?.score || null;
+    return assessment?.totalScore || null;
   } else if (goalType === 'protein') {
-    // Get latest daily log protein intake (average of last 7 days or latest)
-    const today = new Date().toISOString().split('T')[0];
     const dailyLogs = await DailyLog.find({ userId })
       .sort({ date: -1 })
       .limit(7)
       .lean();
     if (dailyLogs.length > 0) {
       const totalProtein = dailyLogs.reduce((sum, log) => sum + (log.totalProtein || 0), 0);
-      return totalProtein / dailyLogs.length; // Average protein intake
+      return totalProtein / dailyLogs.length;
     }
     return null;
   } else if (goalType === 'calories_burned') {
-    // Get weekly calories burned (current week)
-    const today = new Date();
-    const monday = new Date(today);
-    monday.setDate(today.getDate() - today.getDay() + 1); // Get Monday of current week
-    const weekStart = monday.toISOString().split('T')[0];
-    const weeklyLog = await WeeklyLog.findOne({ userId, weekStart }).lean();
-    return weeklyLog?.totalCalories || null;
+    const dailyLogs = await DailyLog.find({ userId })
+      .sort({ date: -1 })
+      .limit(7)
+      .lean();
+    if (dailyLogs.length > 0) {
+      const totalCalories = dailyLogs.reduce((sum, log) => sum + (log.totalCaloriesBurned || 0), 0);
+      return totalCalories;
+    }
+    return null;
   }
   return null;
 }
@@ -318,6 +317,58 @@ exports.getAvailableGoals = async (req, res) => {
   } catch (err) {
     console.error('Get available goals error:', err);
     return res.status(500).json({ message: 'Error fetching available goals' });
+  }
+};
+
+// Get latest assessment scores for goal tracking
+exports.getLatestAssessments = async (req, res) => {
+  try {
+    const userId = req.user.id;
+    
+    const [gad7, phq9, ghq12] = await Promise.all([
+      AssessmentResult.findOne({ userId, assessmentName: 'GAD-7' })
+        .sort({ createdAt: -1 })
+        .select('totalScore severityLabel createdAt')
+        .lean(),
+      AssessmentResult.findOne({ userId, assessmentName: 'PHQ-9' })
+        .sort({ createdAt: -1 })
+        .select('totalScore severityLabel createdAt')
+        .lean(),
+      AssessmentResult.findOne({ userId, assessmentName: 'GHQ-12' })
+        .sort({ createdAt: -1 })
+        .select('totalScore severityLabel createdAt')
+        .lean()
+    ]);
+
+    return res.json({
+      latestAssessments: {
+        gad7: gad7 ? { score: gad7.totalScore, severity: gad7.severityLabel, date: gad7.createdAt } : null,
+        phq9: phq9 ? { score: phq9.totalScore, severity: phq9.severityLabel, date: phq9.createdAt } : null,
+        ghq12: ghq12 ? { score: ghq12.totalScore, severity: ghq12.severityLabel, date: ghq12.createdAt } : null
+      }
+    });
+  } catch (err) {
+    console.error('Get latest assessments error:', err);
+    return res.status(500).json({ message: 'Error fetching latest assessments' });
+  }
+};
+
+// End/Delete a goal
+exports.endGoal = async (req, res) => {
+  try {
+    const userId = req.user.id;
+    const { goalId } = req.params;
+
+    const goal = await Goal.findOne({ _id: goalId, userId });
+    if (!goal) {
+      return res.status(404).json({ message: 'Goal not found' });
+    }
+
+    await Goal.findByIdAndDelete(goalId);
+    return res.json({ message: 'Goal ended successfully' });
+  } catch (err) {
+    console.error('End goal error:', err);
+    return res.status(500).json({ message: 'Error ending goal' });
   }
 };
 

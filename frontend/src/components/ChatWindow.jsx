@@ -27,9 +27,15 @@ export default function ChatWindow({ group, messages = [], typingUsers = [], sen
 
         const user = response.data?.user;
         if (user) {
+          // Determine profile photo based on gender
+          let avatarPhoto = '/user.jpg'; // default for male or no gender
+          if (user.gender && user.gender.toLowerCase() === 'female') {
+            avatarPhoto = '/user2.png';
+          }
+          
           setUserData({
             sender: user.fullName || "Anonymous",
-            avatar: user.profilePhoto || "/user.jpg",
+            avatar: user.profilePhoto || avatarPhoto,
             phone: user.phone || "",
             userId: user._id || user.id,
           });

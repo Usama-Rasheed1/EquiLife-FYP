@@ -8,6 +8,7 @@ const DailyLogSchema = new mongoose.Schema(
     totalProtein: { type: Number, default: 0 },
     totalCarbs: { type: Number, default: 0 },
     totalFat: { type: Number, default: 0 },
+    totalCaloriesBurned: { type: Number, default: 0 },
   },
   { timestamps: true }
 );

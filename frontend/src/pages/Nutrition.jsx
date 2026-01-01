@@ -903,7 +903,7 @@ const Nutrition = () => {
               setError(err.message || 'Save failed');
             } finally { setSaving(false); }
           }} className="bg-blue-500 hover:bg-blue-600 text-white py-2 px-4 rounded-lg shadow transition-all self-center w-full mt-1 cursor-pointer text-sm sm:text-base">
-            {saving ? 'Saving...' : 'Save Diet'}
+            {saving ? 'Connecting...' : 'Get Help'}
           </button>
         </div>
       </div>

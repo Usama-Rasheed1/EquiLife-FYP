@@ -7,7 +7,9 @@ const auth = require('../middleware/authMiddleware');
 router.post('/start', auth, goalController.startGoal);
 router.get('/', auth, goalController.getGoals);
 router.get('/available', auth, goalController.getAvailableGoals);
+router.get('/latest-assessments', auth, goalController.getLatestAssessments);
 router.post('/:goalId/restart', auth, goalController.restartGoal);
+router.delete('/:goalId', auth, goalController.endGoal);
 
 module.exports = router;
 

@@ -51,6 +51,10 @@ const Navbar = ({ userName, activePage = "dashboard", onToggleSidebar }) => {
           if (u.fullName) setName(u.fullName);
           if (u.profilePhoto) {
             setProfilePhoto(u.profilePhoto.startsWith('data:') ? u.profilePhoto : u.profilePhoto);
+          } else {
+            // Set default profile photo based on gender
+            const defaultPhoto = (u.gender && u.gender.toLowerCase() === 'female') ? '/user2.png' : '/user.jpg';
+            setProfilePhoto(defaultPhoto);
           }
         }
       } catch (err) {
@@ -151,6 +155,10 @@ const Navbar = ({ userName, activePage = "dashboard", onToggleSidebar }) => {
           if (data?.fullName) setName(data.fullName);
           if (data?.profilePhoto) {
             setProfilePhoto(data.profilePhoto.startsWith('data:') ? data.profilePhoto : data.profilePhoto);
+          } else if (data?.gender) {
+            // Update default profile photo based on gender
+            const defaultPhoto = (data.gender.toLowerCase() === 'female') ? '/user2.png' : '/user.jpg';
+            setProfilePhoto(defaultPhoto);
           }
         }}
       />

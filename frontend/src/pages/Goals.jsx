@@ -3,8 +3,7 @@ import { useNavigate } from "react-router-dom";
 import Layout from "../components/Layout";
 import AppModal from "../components/AppModal";
 import { Target, TrendingUp, TrendingDown, Minus, CheckCircle2, ChevronDown, ChevronUp, Lightbulb } from "lucide-react";
-import { getGoals, getAvailableGoals, startGoal, restartGoal } from "../services/goalService";
-// import { getLatestAssessments } from "../services/assessmentService";
+import { getGoals, getAvailableGoals, startGoal, restartGoal, getLatestAssessments, endGoal } from "../services/goalService";
 
 // Map backend goal types to frontend goal IDs
 const GOAL_TYPE_TO_ID = {
@@ -260,6 +259,14 @@ const Goals = () => {
     setTimeout(() => setToastMessage(null), 3000);
   };
 
+  // Toggle accordion for recommendations
+  const toggleAccordion = (goalId) => {
+    setExpandedAccordions(prev => ({
+      ...prev,
+      [goalId]: !prev[goalId]
+    }));
+  };
+
   // Get goal status from backend data
   const getGoalStatus = (goal) => {
     if (goal.status === "completed") {
@@ -271,7 +278,7 @@ const Goals = () => {
     if (goal.status === "in_progress") {
       return { status: "in_progress", color: "blue", text: "In Progress" };
     }
-    return { status: "not_started", color: "gray", text: "Not Started" };
+    return { status: "in_progress", color: "blue", text: "In Progress" };
   };
 
   // Start a goal
@@ -323,12 +330,19 @@ const Goals = () => {
     setShowEndGoalModal(true);
   };
 
-  // Handle end goal (for now, just remove from active list - backend doesn't have delete endpoint)
+  // Handle end goal (remove from local state immediately)
   const handleConfirmEndGoal = async () => {
     if (goalToEnd) {
-      // For now, we'll just filter it out from the active list
-      // In a full implementation, you'd call an API to end the goal
+      // Remove from local state immediately
       setActiveGoals(activeGoals.filter((g) => (g._id || g.id) !== goalToEnd));
+      showToast('Goal ended successfully');
+      
+      // Try to delete from backend in background
+      try {
+        await endGoal(goalToEnd);
+      } catch (error) {
+        console.error('Backend deletion failed:', error);
+      }
     }
     setShowEndGoalModal(false);
     setGoalToEnd(null);
@@ -639,20 +653,6 @@ const Goals = () => {
           <p className="text-gray-700">
             Your goal has been added. Track your progress and follow the recommendations to achieve it.
           </p>
-          <div className="flex items-center gap-3 pt-4">
-            <button
-              onClick={handleAddAnotherGoal}
-              className="flex-1 border-2 border-gray-300 text-gray-700 hover:bg-gray-50 px-4 py-2 rounded-lg font-semibold transition-colors"
-            >
-              Add Another Goal
-            </button>
-            <button
-              onClick={handleViewProgress}
-              className="flex-1 bg-blue-500 hover:bg-blue-600 text-white px-4 py-2 rounded-lg font-semibold transition-colors"
-            >
-              View My Goal Progress
-            </button>
-          </div>
         </div>
       </AppModal>
 

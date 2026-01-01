@@ -63,9 +63,15 @@ const initializeSocket = (server) => {
         const saved = await msgDoc.save();
 
         // Populate sender details for emission
-        await saved.populate('sender', 'fullName profilePhoto phone');
+        await saved.populate('sender', 'fullName profilePhoto phone gender');
 
         const senderObj = saved.sender || { _id: senderId, fullName: sender, profilePhoto: avatar };
+        
+        // Determine avatar based on gender if no profile photo
+        let finalAvatar = senderObj.profilePhoto || avatar;
+        if (!finalAvatar) {
+          finalAvatar = (senderObj.gender && senderObj.gender.toLowerCase() === 'female') ? '/user2.png' : '/user.jpg';
+        }
 
         const idStr = saved._id.toString();
         const messageData = {
@@ -75,7 +81,7 @@ const initializeSocket = (server) => {
           message: saved.content,
           senderId: (senderObj._id || senderId).toString ? (senderObj._id || senderId).toString() : (senderObj._id || senderId),
           sender: senderObj.fullName || sender,
-          avatar: senderObj.profilePhoto || avatar || '/user.jpg',
+          avatar: finalAvatar,
           phone: senderObj.phone || '',
           timestamp: (saved.createdAt && saved.createdAt.toISOString) ? saved.createdAt.toISOString() : saved.createdAt,
           clientTempId: clientTempId || null,

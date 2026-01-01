@@ -7,7 +7,7 @@ exports.createMessage = async (req, res) => {
     const { sender, content, groupName } = req.body;
     const message = new Message({ sender, content, groupName });
     await message.save();
-    const populated = await message.populate('sender', 'fullName profilePhoto phone');
+    const populated = await message.populate('sender', 'fullName profilePhoto phone gender');
     res.status(201).json(populated);
   } catch (err) {
     res.status(500).json({ error: err.message });
@@ -40,20 +40,28 @@ exports.getMessages = async (req, res) => {
           { $or: [{ groupName }, { group: groupName }] },
         ],
       };
-    const messages = await Message.find(filter).populate('sender', 'fullName profilePhoto phone').sort({ createdAt: 1 });
+    const messages = await Message.find(filter).populate('sender', 'fullName profilePhoto phone gender').sort({ createdAt: 1 });
 
     // normalize shape for frontend
-    const normalized = messages.map((m) => ({
-  id: m._id,
-  _id: m._id,
-  groupName: m.groupName || m.group || (m.group && m.group.toString && m.group.toString()) || groupName,
-  message: m.content || m.message,
-      senderId: m.sender?._id,
-      sender: m.sender?.fullName || 'Anonymous',
-      avatar: m.sender?.profilePhoto || '/user.jpg',
-      phone: m.sender?.phone || '',
-      timestamp: m.createdAt,
-    }));
+    const normalized = messages.map((m) => {
+      // Determine avatar based on gender if no profile photo
+      let avatar = m.sender?.profilePhoto;
+      if (!avatar) {
+        avatar = (m.sender?.gender && m.sender.gender.toLowerCase() === 'female') ? '/user2.png' : '/user.jpg';
+      }
+      
+      return {
+        id: m._id,
+        _id: m._id,
+        groupName: m.groupName || m.group || (m.group && m.group.toString && m.group.toString()) || groupName,
+        message: m.content || m.message,
+        senderId: m.sender?._id,
+        sender: m.sender?.fullName || 'Anonymous',
+        avatar,
+        phone: m.sender?.phone || '',
+        timestamp: m.createdAt,
+      };
+    });
 
     res.json(normalized);
   } catch (err) {

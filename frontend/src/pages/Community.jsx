@@ -12,16 +12,11 @@ const Community = () => {
 
   // static predefined groups (not stored in DB)
   const groups = [
-    { id: 'The Lounge', avatar: '/user.jpg', name: 'The Lounge', message: 'Last message from this group...', time: '2h', starred: true },
-    { id: 'Mind Matters', avatar: '/user.jpg', name: 'Mind Matters', message: 'Last message...', time: '4h', starred: false },
-    { id: 'Fit Focus', avatar: '/user.jpg', name: 'Fit Focus', message: 'Last message...', time: '1d', starred: true },
-    { id: 'Nutrition Corner', avatar: '/user.jpg', name: 'Nutrition Corner', message: 'Last message...', time: '2d', starred: false },
-    { id: 'Wellness Warriors', avatar: '/user.jpg', name: 'Wellness Warriors', message: 'Great workout session today!', time: '3d', starred: true },
-    { id: 'Mental Health Support', avatar: '/user.jpg', name: 'Mental Health Support', message: 'Thanks for sharing your experience', time: '4d', starred: false },
-    { id: 'Healthy Recipes', avatar: '/user.jpg', name: 'Healthy Recipes', message: 'Check out this new smoothie recipe', time: '5d', starred: true },
-    { id: 'Meditation Group', avatar: '/user.jpg', name: 'Meditation Group', message: 'Daily meditation reminder', time: '1w', starred: false },
-    { id: 'Fitness Challenges', avatar: '/user.jpg', name: 'Fitness Challenges', message: '30-day challenge starts tomorrow!', time: '1w', starred: true },
-    { id: 'Stress Management', avatar: '/user.jpg', name: 'Stress Management', message: 'Breathing exercises for anxiety', time: '2w', starred: false }
+    { id: 'The Lounge', avatar: '/theLounge.png', name: 'The Lounge', message: 'Last message from this group...', time: '2h', starred: true },
+    { id: 'Mind Matters', avatar: '/mindMatters.png', name: 'Mind Matters', message: 'Last message...', time: '4h', starred: false },
+    { id: 'Fit Focus', avatar: '/fitFocus.svg', name: 'Fit Focus', message: 'Last message...', time: '1d', starred: true },
+    { id: 'Nutrition Corner', avatar: '/nutritionCorner.svg', name: 'Nutrition Corner', message: 'Last message...', time: '2d', starred: false },
+    { id: 'Meditation Group', avatar: '/meditation.png', name: 'Meditation Group', message: 'Daily meditation reminder', time: '1w', starred: false }
   ];
 
   const filteredGroups = groups.filter((group) =>

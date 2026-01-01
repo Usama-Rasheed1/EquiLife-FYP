@@ -39,10 +39,16 @@ const useSocket = () => {
               headers: { Authorization: `Bearer ${token}` },
             });
             const user = response.data?.user;
+            // Determine profile photo based on gender
+            let avatarPhoto = '/user.jpg'; // default for male or no gender
+            if (user?.gender && user.gender.toLowerCase() === 'female') {
+              avatarPhoto = '/user2.png';
+            }
+            
             userDataRef.current = {
               userId: user?._id || user?.id || `anon_${Date.now()}`,
               sender: user?.fullName || 'Anonymous',
-              avatar: user?.profilePhoto || '/user.jpg',
+              avatar: user?.profilePhoto || avatarPhoto,
               phone: user?.phone || '',
             };
           } catch (err) {
