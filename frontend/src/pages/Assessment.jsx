@@ -1,11 +1,17 @@
-import React, { useState, useMemo } from "react";
+import React, { useState, useMemo, useEffect } from "react";
 import Layout from "../components/Layout";
 import AssessmentModal from "../components/AssessmentModal";
 import { LineChart, Line, ResponsiveContainer, Tooltip } from "recharts";
+import assessmentService from "../services/assessmentService";
 
 const Assessment = () => {
   const [selectedTest, setSelectedTest] = useState(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const [assessments, setAssessments] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [latestScores, setLatestScores] = useState({});
+  const [completedToday, setCompletedToday] = useState([]);
+  const [graphData, setGraphData] = useState(null);
 
   // Get current month and year
   const currentDate = new Date();
@@ -26,57 +32,89 @@ const Assessment = () => {
 
   const weeksInMonth = getWeeksInMonth();
 
-  // Generate sample trend data with visible trends (in a real app, this would come from backend)
-  const trendData = useMemo(() => {
-    const weeks = [];
-    // Create realistic trend patterns with some missing data
-    for (let i = 1; i <= weeksInMonth; i++) {
-      // Anxiety: decreasing trend with one missing week
-      const anxietyValue = i === 1 ? 9 : i === 2 ? null : i === 3 ? 7 : i === 4 ? 6 : weeksInMonth >= 5 && i === 5 ? 5 : null;
-      
-      // Depression:
-      const depressionValue = i === 1 ? 12 : i === 2 ? 11 : i === 3 ? 6 : i === 4 ? 9 : weeksInMonth >= 5 && i === 5 ? 8 : null;
-      
-      // Wellbeing: improving trend with one missing week
-      const wellbeingValue = i === 1 ? 10 : i === 2 ? null : i === 3 ? 13 : i === 4 ? 15 : weeksInMonth >= 5 && i === 5 ? 16 : null;
-      
-      weeks.push({
-        week: i,
-        anxiety: anxietyValue,
-        depression: depressionValue,
-        wellbeing: wellbeingValue,
-        // For missing data visualization - interpolated values for dotted lines
-        anxietyMissing: anxietyValue === null ? (i === 2 ? 8 : null) : null,
-        depressionMissing: depressionValue === null ? (i === 3 ? 10 : null) : null,
-        wellbeingMissing: wellbeingValue === null ? (i === 2 ? 11.5 : null) : null,
-      });
-    }
-    return weeks;
-  }, [weeksInMonth]);
+  // Use real graph data from database, fall back to empty array if not loaded
+  const trendData = graphData || [];
 
-  const assessments = [
-    {
-      id: "gad7",
-      shortName: "Anxiety Assessment",
-      technicalName: "GAD-7",
-      description:
-        "A brief screening tool to identify and measure the severity of generalized anxiety disorder symptoms.",
-    },
-    {
-      id: "phq9",
-      shortName: "Depression Assessment",
-      technicalName: "PHQ-9",
-      description:
-        "Used for screening, diagnosing, and monitoring the severity of depressive symptoms over the past two weeks.",
-    },
-    {
-      id: "ghq12",
-      shortName: "General Health Questionnaire",
-      technicalName: "GHQ-12",
-      description:
-        "A self-assessment tool designed to detect psychological distress and early signs of mental health concerns.",
-    },
-  ];
+  // Fetch assessments on mount
+  useEffect(() => {
+    loadAssessments();
+    loadGraphData();
+  }, []);
+
+  const loadAssessments = async () => {
+    setLoading(true);
+    try {
+      const response = await assessmentService.getAssessments();
+      if (response.ok) {
+        // Map API response to component format
+        const mappedAssessments = response.assessments.map((assessment) => ({
+          id: assessment._id,
+          shortName: assessment.shortName,
+          technicalName: assessment.name,
+          description: assessment.description,
+        }));
+        setAssessments(mappedAssessments);
+      }
+
+      // Also fetch latest scores and check for today's submissions
+      try {
+        const scoresResponse = await assessmentService.getLatestScores();
+        if (scoresResponse.ok) {
+          setLatestScores(scoresResponse.latestScores);
+        }
+
+        // Fetch assessment history to check what was done today
+        const historyResponse = await assessmentService.getUserHistory();
+        if (historyResponse.ok && historyResponse.results) {
+          // Get today's date (start and end of day in UTC)
+          const now = new Date();
+          const startOfDay = new Date(
+            Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate(), 0, 0, 0)
+          );
+          const endOfDay = new Date(
+            Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate(), 23, 59, 59, 999)
+          );
+
+          // Find assessments completed today
+          const todayCompletions = historyResponse.results
+            .filter((result) => {
+              const createdAt = new Date(result.createdAt);
+              return createdAt >= startOfDay && createdAt <= endOfDay;
+            })
+            .map((result) => result.assessmentName);
+
+          setCompletedToday(todayCompletions);
+        }
+      } catch (err) {
+        // Not authenticated, which is fine for public view
+      }
+    } catch (err) {
+      console.error("Error loading assessments:", err);
+      // Fallback: show default assessments if API fails
+      setAssessments([
+        {
+          id: "gad7",
+          shortName: "Anxiety Assessment",
+          technicalName: "GAD-7",
+          description: "A brief screening tool to identify and measure the severity of generalized anxiety disorder symptoms.",
+        },
+        {
+          id: "phq9",
+          shortName: "Depression Assessment",
+          technicalName: "PHQ-9",
+          description: "Used for screening, diagnosing, and monitoring the severity of depressive symptoms over the past two weeks.",
+        },
+        {
+          id: "ghq12",
+          shortName: "General Health Questionnaire",
+          technicalName: "GHQ-12",
+          description: "A self-assessment tool designed to detect psychological distress and early signs of mental health concerns.",
+        },
+      ]);
+    } finally {
+      setLoading(false);
+    }
+  };
 
   const handleStartTest = (testId) => {
     setSelectedTest(testId);
@@ -86,6 +124,43 @@ const Assessment = () => {
   const handleCloseModal = () => {
     setIsModalOpen(false);
     setSelectedTest(null);
+    // Reload latest scores when modal closes
+    loadAssessments();
+    loadGraphData();
+  };
+
+  /**
+   * Fetch graph data from database
+   * Transforms API response into trendData format for Recharts
+   */
+  const loadGraphData = async () => {
+    try {
+      const response = await assessmentService.getGraphTrends();
+      if (response.ok && response.graphData) {
+        const { weeks, anxiety, depression, wellbeing } = response.graphData;
+        
+        // Transform into trendData format for compatibility with existing graphs
+        const formattedData = weeks.map((week, index) => {
+          const weekNum = index + 1;
+          return {
+            week: weekNum,
+            anxiety: anxiety[index],
+            depression: depression[index],
+            wellbeing: wellbeing[index],
+            // For missing data visualization
+            anxietyMissing: anxiety[index] === null ? null : undefined,
+            depressionMissing: depression[index] === null ? null : undefined,
+            wellbeingMissing: wellbeing[index] === null ? null : undefined,
+          };
+        });
+        
+        setGraphData(formattedData);
+      }
+    } catch (err) {
+      console.error("Error loading graph data:", err);
+      // Keep default empty data if fetch fails
+      setGraphData([]);
+    }
   };
 
   return (
@@ -104,10 +179,18 @@ const Assessment = () => {
 
           {/* Cards */}
           <div className="grid grid-cols-1 md:grid-cols-3 gap-5 mb-6">
-            {assessments.map((assessment) => (
+            {assessments.map((assessment) => {
+              // Check if this assessment was completed today
+              const isCompletedToday = completedToday.includes(assessment.technicalName);
+              
+              return (
               <div
                 key={assessment.id}
-                className="bg-white/90 border border-gray-200 rounded-2xl shadow-sm hover:shadow-lg hover:-translate-y-1 transition-all p-8 flex flex-col"
+                className={`bg-white/90 border rounded-2xl shadow-sm transition-all p-8 flex flex-col ${
+                  isCompletedToday
+                    ? 'border-gray-300 opacity-75'
+                    : 'border-gray-200 hover:shadow-lg hover:-translate-y-1'
+                }`}
               >
                 <div className="flex-grow">
                   <h3 className="text-lg font-semibold text-gray-900 mb-1">
@@ -123,14 +206,31 @@ const Assessment = () => {
                   </p>
                 </div>
 
+                {isCompletedToday && (
+                  <div className="mt-3 p-3 bg-amber-50 border border-amber-200 rounded-lg">
+                    <p className="text-xs text-amber-800 font-medium">
+                      ✓ Completed today
+                    </p>
+                    <p className="text-xs text-amber-700 mt-1">
+                      Come back tomorrow to take this assessment again.
+                    </p>
+                  </div>
+                )}
+
                 <button
                   onClick={() => handleStartTest(assessment.id)}
-                  className="w-full py-2 mt-5 bg-blue-600 text-white rounded-lg text-sm font-medium hover:bg-blue-700 transition"
+                  disabled={isCompletedToday}
+                  className={`w-full py-2 mt-5 rounded-lg text-sm font-medium transition ${
+                    isCompletedToday
+                      ? 'bg-gray-300 text-gray-500 cursor-not-allowed'
+                      : 'bg-blue-600 text-white hover:bg-blue-700'
+                  }`}
                 >
-                  Start Test
+                  {isCompletedToday ? 'Already Completed Today' : 'Start Test'}
                 </button>
               </div>
-            ))}
+            );
+            })}
           </div>
 
           {/* Instructions */}

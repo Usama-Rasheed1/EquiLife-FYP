@@ -5,6 +5,7 @@ import ProfileSettingsModal from "./ProfileSettingsModal";
 
 const Navbar = ({ userName, activePage = "dashboard", onToggleSidebar }) => {
   const [name, setName] = useState(userName);
+  const [profilePhoto, setProfilePhoto] = useState("/user.jpg");
 
   const getPageTitle = () => {
     switch (activePage) {
@@ -46,7 +47,12 @@ const Navbar = ({ userName, activePage = "dashboard", onToggleSidebar }) => {
         const url = `${import.meta.env.VITE_BACKEND_BASE_URL}/api/auth/profile`;
         const res = await axios.get(url, { headers: { Authorization: `Bearer ${token}` } });
         const u = res.data?.user;
-        if (u && u.fullName) setName(u.fullName);
+        if (u) {
+          if (u.fullName) setName(u.fullName);
+          if (u.profilePhoto) {
+            setProfilePhoto(u.profilePhoto.startsWith('data:') ? u.profilePhoto : u.profilePhoto);
+          }
+        }
       } catch (err) {
         // ignore
       }
@@ -100,9 +106,10 @@ const Navbar = ({ userName, activePage = "dashboard", onToggleSidebar }) => {
             onClick={() => setDropdownOpen(!dropdownOpen)}
           >
             <img
-              src="/user.jpg"
+              src={profilePhoto}
               alt="User Avatar"
-              className="h-6 w-6 lg:h-7 lg:w-7 rounded-full object-cover"
+              className="h-6 w-6 lg:h-7 lg:w-7 rounded-full object-cover border border-white"
+              onError={(e) => { e.target.src = "/user.jpg"; }}
             />
             <span className="text-white text-sm lg:text-md ml-1 lg:ml-2 hidden sm:block">
               {name}
@@ -142,6 +149,9 @@ const Navbar = ({ userName, activePage = "dashboard", onToggleSidebar }) => {
         onClose={() => setSettingsOpen(false)}
         onSaved={(data) => {
           if (data?.fullName) setName(data.fullName);
+          if (data?.profilePhoto) {
+            setProfilePhoto(data.profilePhoto.startsWith('data:') ? data.profilePhoto : data.profilePhoto);
+          }
         }}
       />
     </>

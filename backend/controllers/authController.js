@@ -45,7 +45,7 @@ exports.login = async (req, res) => {
 
 // Update profile fields separately
 exports.updateProfile = async (req, res) => {
-  const { fullName, gender, dob, age, heightCm, weightKg, password, bmi, bmr, dailyCalories } = req.body;
+  const { fullName, gender, dob, age, heightCm, weightKg, password, bmi, bmr, dailyCalories, profilePhoto } = req.body;
   try {
     const updates = {};
     if (fullName !== undefined) updates.fullName = fullName;
@@ -57,6 +57,7 @@ exports.updateProfile = async (req, res) => {
     if (bmi !== undefined) updates.bmi = bmi;
     if (bmr !== undefined) updates.bmr = bmr;
     if (dailyCalories !== undefined) updates.dailyCalories = dailyCalories;
+    if (profilePhoto !== undefined) updates.profilePhoto = profilePhoto;
     
     // Handle password update separately to ensure it gets hashed
     if (password !== undefined && password !== null && password !== "") {

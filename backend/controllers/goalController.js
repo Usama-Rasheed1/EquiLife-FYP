@@ -2,7 +2,7 @@ const Goal = require('../models/Goal');
 const User = require('../models/User');
 const Assessment = require('../models/Assessment');
 const DailyLog = require('../models/DailyLog');
-const WeeklyLog = require('../models/WeeklyLog');
+// const WeeklyLog = require('../models/WeeklyLog');
 const predefinedGoals = require('../data/predefinedGoals');
 
 // Helper function to calculate target value based on goal type and base value

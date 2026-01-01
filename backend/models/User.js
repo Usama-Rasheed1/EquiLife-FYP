@@ -43,7 +43,9 @@ const userSchema = new mongoose.Schema({
   // Gamification: track active and completed challenges
   activeChallenges: { type: [ActiveChallengeSchema], default: [] },
   completedChallenges: { type: [CompletedChallengeSchema], default: [] },
-  badges: { type: [String], default: [] }
+  badges: { type: [String], default: [] },
+  // Profile photo stored as base64 string
+  profilePhoto: { type: String }
 }, { timestamps: true });
 
 // hash password automatically when created/changed

@@ -1,6 +1,6 @@
 const express = require('express');
 const router = express.Router();
-const foodController = require('../controllers/food.controller');
+const foodController = require('../controllers/foodController');
 const auth = require('../middleware/authMiddleware');
 
 router.get('/predefined', foodController.getPredefinedFoods);

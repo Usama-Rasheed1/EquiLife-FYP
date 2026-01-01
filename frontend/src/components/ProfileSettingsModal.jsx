@@ -11,6 +11,8 @@ const ProfileSettingsModal = ({ isOpen, onClose, userData, onSaved }) => {
   const [height, setHeight] = useState("");
   const [weight, setWeight] = useState("");
   const [profilePhoto, setProfilePhoto] = useState("/user.jpg");
+  const [profilePhotoFile, setProfilePhotoFile] = useState(null);
+  const [uploadingPhoto, setUploadingPhoto] = useState(false);
 
   const [newPass, setNewPass] = useState("");
   const [confirmPass, setConfirmPass] = useState("");
@@ -39,7 +41,12 @@ const ProfileSettingsModal = ({ isOpen, onClose, userData, onSaved }) => {
           setDob(u.dob ? new Date(u.dob).toISOString().slice(0, 10) : "");
           setHeight(u.heightCm ? u.heightCm.toString() : "");
           setWeight(u.weightKg ? u.weightKg.toString() : "");
-          setProfilePhoto(u.profilePhoto || "/user.jpg");
+          // Handle profile photo - could be base64 string or URL
+          if (u.profilePhoto) {
+            setProfilePhoto(u.profilePhoto.startsWith('data:') ? u.profilePhoto : u.profilePhoto);
+          } else {
+            setProfilePhoto("/user.jpg");
+          }
         }
       } catch (err) {
         console.error("Load profile error:", err);
@@ -49,11 +56,42 @@ const ProfileSettingsModal = ({ isOpen, onClose, userData, onSaved }) => {
     load();
   }, [isOpen]);
 
-  // Upload handler
-  const handlePhotoUpload = (e) => {
+  // Upload handler - convert image to base64
+  const handlePhotoUpload = async (e) => {
     const file = e.target.files[0];
-    if (file) {
-      setProfilePhoto(URL.createObjectURL(file));
+    if (!file) return;
+
+    // Validate file type
+    if (!file.type.startsWith('image/')) {
+      setMessage({ type: 'error', text: 'Please select an image file' });
+      return;
+    }
+
+    // Validate file size (max 5MB)
+    if (file.size > 5 * 1024 * 1024) {
+      setMessage({ type: 'error', text: 'Image size must be less than 5MB' });
+      return;
+    }
+
+    setUploadingPhoto(true);
+    try {
+      // Convert to base64
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        const base64String = reader.result;
+        setProfilePhoto(base64String);
+        setProfilePhotoFile(base64String);
+        setUploadingPhoto(false);
+      };
+      reader.onerror = () => {
+        setMessage({ type: 'error', text: 'Error reading image file' });
+        setUploadingPhoto(false);
+      };
+      reader.readAsDataURL(file);
+    } catch (error) {
+      console.error('Error processing image:', error);
+      setMessage({ type: 'error', text: 'Error processing image' });
+      setUploadingPhoto(false);
     }
   };
 
@@ -97,6 +135,8 @@ const ProfileSettingsModal = ({ isOpen, onClose, userData, onSaved }) => {
         heightCm: height ? Number(height) : undefined,
         weightKg: weight ? Number(weight) : undefined,
         password: newPass && newPass.length >= 5 && newPass === confirmPass ? newPass : undefined,
+        // Only send profilePhoto if it's a new upload (base64) or existing base64 from DB
+        profilePhoto: profilePhotoFile || (profilePhoto && profilePhoto.startsWith('data:image') ? profilePhoto : undefined),
       };
       await axios.put(url, payload, { headers: { Authorization: `Bearer ${token}` } });
       setMessage({ type: 'success', text: 'Profile updated' });
@@ -121,6 +161,8 @@ const ProfileSettingsModal = ({ isOpen, onClose, userData, onSaved }) => {
         setConfirmPass("");
         setPasswordVisible(false);
       }
+      // Reset photo file state after successful save
+      setProfilePhotoFile(null);
       // close modal after brief delay
       setTimeout(() => {
         setSaving(false);
@@ -150,11 +192,11 @@ const ProfileSettingsModal = ({ isOpen, onClose, userData, onSaved }) => {
           />
           <label
             htmlFor="photoUpload"
-            className="absolute inset-0 bg-black/40 text-white text-sm 
-                       flex items-center justify-center rounded-full opacity-0 
-                       group-hover:opacity-100 transition-opacity duration-200 cursor-pointer"
+            className={`absolute inset-0 bg-black/40 text-white text-sm 
+                       flex items-center justify-center rounded-full transition-opacity duration-200 cursor-pointer
+                       ${uploadingPhoto ? 'opacity-100' : 'opacity-0 group-hover:opacity-100'}`}
           >
-            Upload
+            {uploadingPhoto ? 'Processing...' : 'Upload'}
           </label>
           <input
             id="photoUpload"
@@ -162,6 +204,7 @@ const ProfileSettingsModal = ({ isOpen, onClose, userData, onSaved }) => {
             accept="image/*"
             className="hidden"
             onChange={handlePhotoUpload}
+            disabled={uploadingPhoto}
           />
         </div>
 
