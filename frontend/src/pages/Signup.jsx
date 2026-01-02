@@ -2,6 +2,7 @@ import { useState } from "react";
 import { Eye, EyeClosed } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import axios from "axios";
+import OTPVerification from "../components/OTPVerification";
 
 const Signup = () => {
   const [showPassword, setShowPassword] = useState(false);
@@ -13,6 +14,7 @@ const Signup = () => {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
   const [success, setSuccess] = useState(null);
+  const [showOTPVerification, setShowOTPVerification] = useState(false);
   const navigate = useNavigate();
 
   const handleSubmit = async (e) => {
@@ -37,14 +39,7 @@ const Signup = () => {
 
       const res = await axios.post(url, payload);
       if (res.status === 201 || res.status === 200) {
-        // store token if backend returns one
-        if (res.data?.accessToken) {
-          try {
-            localStorage.setItem("authToken", res.data.accessToken);
-          } catch (e) {}
-        }
-        // After signup redirect user directly to dashboard
-        navigate("/dashboard");
+        setShowOTPVerification(true);
       } else {
         setError(res.data?.message || "Registration failed");
       }
@@ -57,6 +52,17 @@ const Signup = () => {
     }
   };
 
+  const handleOTPSuccess = () => {
+    // OTP verified, redirect to dashboard
+    navigate("/dashboard");
+  };
+
+  const handleBackToSignup = () => {
+    setShowOTPVerification(false);
+    setError(null);
+    setSuccess(null);
+  };
+
   return (
     <div
       className="min-h-screen flex items-center justify-center p-4"
@@ -65,10 +71,17 @@ const Signup = () => {
           "linear-gradient(90deg, rgba(74,144,226,0) 0%, rgba(74,144,226,0.5) 30%, rgba(74,144,226,1) 85%, rgba(74,144,226,1) 100%)",
       }}
     >
-      <div
-        className="bg-white shadow-lg rounded-xl flex w-full max-w-4xl overflow-hidden"
-        style={{ minHeight: "550px" }}
-      >
+      {showOTPVerification ? (
+        <OTPVerification
+          email={email}
+          onSuccess={handleOTPSuccess}
+          onBackToSignup={handleBackToSignup}
+        />
+      ) : (
+        <div
+          className="bg-white shadow-lg rounded-xl flex w-full max-w-4xl overflow-hidden"
+          style={{ minHeight: "550px" }}
+        >
         <div className="w-1/2 p-8 flex flex-col justify-center">
           <img
             src="./logo.jpeg"
@@ -216,6 +229,7 @@ const Signup = () => {
           />
         </div>
       </div>
+      )}
     </div>
   );
 };

@@ -2,6 +2,8 @@ import { useState } from "react";
 import { Eye, EyeClosed } from "lucide-react";
 import { useNavigate } from 'react-router-dom';
 import axios from 'axios';
+import OTPVerification from "../components/OTPVerification";
+import authService from "../services/authService";
 
 const Signin = () => {
   const [showPassword, setShowPassword] = useState(false);
@@ -9,6 +11,7 @@ const Signin = () => {
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
+  const [showOTPVerification, setShowOTPVerification] = useState(false);
   const navigate = useNavigate();
 
   const handleSubmit = async (e) => {
@@ -26,11 +29,30 @@ const Signin = () => {
       navigate('/dashboard');
     } catch (err) {
       const msg = err?.response?.data?.message || 'Login failed';
-      setError(msg);
+      const status = err?.response?.status;
+
+      // If email not verified, show OTP verification screen
+      if (status === 403 && err?.response?.data?.requiresOTPVerification) {
+        setError('Please verify your email first.');
+        setShowOTPVerification(true);
+      } else {
+        setError(msg);
+      }
       console.error(err);
     } finally {
       setLoading(false);
     }
+  };
+
+  const handleOTPSuccess = () => {
+    // OTP verified, try to login again or redirect
+    navigate("/dashboard");
+  };
+
+  const handleBackToSignin = () => {
+    setShowOTPVerification(false);
+    setError(null);
+    setPassword('');
   };
 
   return (
@@ -41,10 +63,17 @@ const Signin = () => {
           "linear-gradient(90deg, rgba(74,144,226,0) 0%, rgba(74,144,226,0.5) 30%, rgba(74,144,226,1) 85%, rgba(74,144,226,1) 100%)",
       }}
     >
-      <div
-        className="bg-white shadow-lg rounded-xl flex w-full max-w-4xl overflow-hidden"
-        style={{ minHeight: "550px" }}
-      >
+      {showOTPVerification ? (
+        <OTPVerification
+          email={email}
+          onSuccess={handleOTPSuccess}
+          onBackToSignup={handleBackToSignin}
+        />
+      ) : (
+        <div
+          className="bg-white shadow-lg rounded-xl flex w-full max-w-4xl overflow-hidden"
+          style={{ minHeight: "550px" }}
+        >
         <div className="w-1/2 p-8 flex flex-col justify-center">
           <img
             src="./logo.jpeg"
@@ -108,7 +137,7 @@ const Signin = () => {
             </div>
 
             <div className="flex items-center justify-end">
-              <a href="#" className="text-sm text-blue-600 hover:underline">
+              <a href="/forgot-password" className="text-sm text-blue-600 hover:underline">
                 Forgot your password?
               </a>
             </div>
@@ -149,6 +178,7 @@ const Signin = () => {
           />
         </div>
       </div>
+      )}
     </div>
   );
 };

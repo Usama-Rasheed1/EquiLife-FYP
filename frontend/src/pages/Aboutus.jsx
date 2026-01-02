@@ -30,13 +30,11 @@ const Aboutus = () => {
             <a href="contactus" className="text-gray-700 hover:text-blue-500">
               Contact Us
             </a>
-            <button 
-            onClick={() => {
-                window.location.href = "/signin";
-              }}
-              className="bg-blue-600 text-white cursor-pointer px-4 py-2 rounded hover:bg-blue-700">
+            <a 
+            href="/signin"
+              className="bg-blue-600 text-white cursor-pointer px-4 py-2 rounded hover:bg-blue-700 inline-block">
               Get Started
-            </button>
+            </a>
           </div>
         </div>
       </nav>
@@ -165,9 +163,9 @@ const Aboutus = () => {
               </div>
             </div>
 
-            <button className="bg-blue-600 text-white cursor-pointer px-5 py-2 rounded hover:bg-blue-700">
+            <a href="/signin" className="bg-blue-600 text-white px-5 py-2 rounded hover:bg-blue-700 inline-block cursor-pointer">
               Get Started
-            </button>
+            </a>
           </div>
 
           {/* Right Image */}
@@ -253,9 +251,9 @@ const Aboutus = () => {
           </div>
         </div>
         <div className="flex justify-center">
-          <button className="bg-blue-600 text-white cursor-pointer px-4 py-2 rounded hover:bg-blue-700">
+          <a href="/signin" className="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700 inline-block cursor-pointer">
             Get Started
-          </button>
+          </a>
         </div>
       </section>
 
@@ -349,8 +347,8 @@ const Aboutus = () => {
         {/* Horizontal Divider */}
         <div className="max-w-6xl mx-auto px-32 border-t border-white "></div>
         {/* Copyright */}
-        <div className="flex max-w-7xl pl-26 py-4 text-left text-gray-300 text-sm">
-          &copy; Copyright 2025 EquiLife | All rights reserved |{" "}
+        <div className="w-full py-4 text-center text-gray-300 text-sm">
+          &copy; Copyright 2026 EquiLife | All rights reserved |{" "}
           <span>
             <a href="#" className="font-medium underline">
               Terms and Conditions

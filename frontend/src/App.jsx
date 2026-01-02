@@ -2,6 +2,8 @@ import { BrowserRouter, Routes, Route } from "react-router-dom";
 import "./App.css";
 import Signin from "./pages/Signin";
 import Signup from "./pages/Signup";
+import ForgotPassword from "./pages/ForgotPassword";
+import ForgotPasswordVerify from "./pages/ForgotPasswordVerify";
 import LandingPage from "./pages/LandingPage";
 import Aboutus from "./pages/Aboutus";
 import Contactus from "./pages/Contactus";
@@ -25,6 +27,8 @@ function App() {
         <Route path="/" element={<LandingPage />} />
         <Route path="/signin" element={<Signin />} />
         <Route path="/signup" element={<Signup />} />
+        <Route path="/forgot-password" element={<ForgotPassword />} />
+        <Route path="/forgot-password/verify-otp" element={<ForgotPasswordVerify />} />
         <Route path="/aboutus" element={<Aboutus />} />
         <Route path="/contactus" element={<Contactus />} />
         <Route path="/dashboard" element={<Dashboard />} />

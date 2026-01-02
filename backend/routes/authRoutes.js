@@ -9,6 +9,10 @@ const { otpRequestLimiter, otpVerifyLimiter, loginLimiter } = require('../middle
 authRouter.post('/register', otpRequestLimiter, otpController.register);
 authRouter.post('/verify-email-otp', otpVerifyLimiter, otpController.verifyEmailOTP);
 authRouter.post('/resend-email-otp', otpRequestLimiter, otpController.resendEmailOTP);
+// Password reset via OTP
+authRouter.post('/request-password-reset', otpRequestLimiter, otpController.requestPasswordReset);
+authRouter.post('/verify-reset-otp', otpVerifyLimiter, otpController.verifyPasswordResetOTP);
+authRouter.post('/reset-password', otpVerifyLimiter, otpController.resetPasswordWithOTP);
 
 // Login (rate limited)
 authRouter.post('/login', loginLimiter, login);

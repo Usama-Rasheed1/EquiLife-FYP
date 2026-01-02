@@ -2,10 +2,14 @@ import React, { useState, useRef, useEffect } from "react";
 import axios from "axios";
 import Notifications from "./Notifications";
 import ProfileSettingsModal from "./ProfileSettingsModal";
+import { useSelector, useDispatch } from 'react-redux';
+import { setUserData } from '../store/userSlice';
 
 const Navbar = ({ userName, activePage = "dashboard", onToggleSidebar }) => {
-  const [name, setName] = useState(userName);
-  const [profilePhoto, setProfilePhoto] = useState("/user.jpg");
+  const dispatch = useDispatch();
+  const storeUser = useSelector((s) => s.user || {});
+  const [name, setName] = useState(userName || storeUser.fullName || '');
+  const profilePhoto = storeUser.profilePhoto || "/user.jpg";
 
   const getPageTitle = () => {
     switch (activePage) {
@@ -38,30 +42,33 @@ const Navbar = ({ userName, activePage = "dashboard", onToggleSidebar }) => {
     return () => document.removeEventListener("mousedown", handleClickOutside);
   }, []);
 
-  // fetch current user profile on mount
+  // fetch current user profile on mount if not in store
   useEffect(() => {
     const loadProfile = async () => {
       try {
         const token = localStorage.getItem('authToken');
         if (!token) return;
+        // if we already have profile data in store, set name from store
+        if (storeUser && storeUser.fullName) {
+          setName(storeUser.fullName);
+          return;
+        }
         const url = `${import.meta.env.VITE_BACKEND_BASE_URL}/api/auth/profile`;
         const res = await axios.get(url, { headers: { Authorization: `Bearer ${token}` } });
         const u = res.data?.user;
         if (u) {
           if (u.fullName) setName(u.fullName);
-          if (u.profilePhoto) {
-            setProfilePhoto(u.profilePhoto.startsWith('data:') ? u.profilePhoto : u.profilePhoto);
-          } else {
-            // Set default profile photo based on gender
-            const defaultPhoto = (u.gender && u.gender.toLowerCase() === 'female') ? '/user2.png' : '/user.jpg';
-            setProfilePhoto(defaultPhoto);
-          }
+          const p = u.profilePhoto
+            ? u.profilePhoto.startsWith('data:') ? u.profilePhoto : u.profilePhoto
+            : (u.gender && u.gender.toLowerCase() === 'female' ? '/user2.png' : '/user.jpg');
+          dispatch(setUserData({ fullName: u.fullName, profilePhoto: p, weight: u.weightKg || undefined, dob: u.dob || undefined, age: u.age || undefined }));
         }
       } catch (err) {
         // ignore
       }
     };
     loadProfile();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   return (
@@ -152,13 +159,12 @@ const Navbar = ({ userName, activePage = "dashboard", onToggleSidebar }) => {
         isOpen={settingsOpen}
         onClose={() => setSettingsOpen(false)}
         onSaved={(data) => {
-          if (data?.fullName) setName(data.fullName);
-          if (data?.profilePhoto) {
-            setProfilePhoto(data.profilePhoto.startsWith('data:') ? data.profilePhoto : data.profilePhoto);
-          } else if (data?.gender) {
-            // Update default profile photo based on gender
-            const defaultPhoto = (data.gender.toLowerCase() === 'female') ? '/user2.png' : '/user.jpg';
-            setProfilePhoto(defaultPhoto);
+          try {
+            if (data?.fullName) setName(data.fullName);
+            // update redux store with latest values only after successful save
+            dispatch(setUserData({ fullName: data.fullName, profilePhoto: data.profilePhoto, dob: data.dob, weight: data.weightKg || data.weight, heightCm: data.heightCm || data.height }));
+          } catch (e) {
+            // ignore
           }
         }}
       />

@@ -1,10 +1,45 @@
-import React from "react";
+import React, { useState } from "react";
 
 const LandingPage = () => {
+  const [expandedItems, setExpandedItems] = useState({}); // All items closed by default
+
+  const faqItems = [
+    {
+      question: "Is EquiLife free to use?",
+      answer: "Yes, EquiLife offers a free tier with core features. Premium features are available through optional subscriptions.",
+    },
+    {
+      question: "How does the mental health assessment work?",
+      answer:
+        "Our AI-powered assessment uses scientifically validated questionnaires to evaluate stress, mood, and emotional well-being. Your results are private and used to suggest personalized coping strategies.",
+    },
+    {
+      question: "How accurate is the nutrition calculator?",
+      answer:
+        "Our nutrition calculator uses trusted nutritional databases and AI algorithms to provide accurate macro and micronutrient estimates based on your inputs.",
+    },
+    {
+      question: "Can I interact with other users?",
+      answer:
+        "Yes! EquiLife has a supportive community where you can share your journey, join groups, and interact with like-minded individuals while maintaining your privacy.",
+    },
+    {
+      question: "How does AI give personalized suggestions?",
+      answer:
+        "Our AI analyzes your assessments, goals, fitness data, and nutrition logs to provide tailored recommendations for workouts, meal plans, and mental health strategies.",
+    },
+  ];
+
+  const toggleFAQ = (index) => {
+    setExpandedItems((prev) => ({
+      ...prev,
+      [index]: !prev[index],
+    }));
+  };
   return (
     <div className="font-sans">
       {/*Navbar*/}
-      <nav className="bg-white shadow-md py-2 px-28">
+      <nav className="bg-white shadow-lg py-3 px-28 sticky top-0 z-50">
         <div className="container px-8 flex items-center justify-between">
           {/* Logo */}
           <div className="flex items-center space-x-2">
@@ -21,7 +56,7 @@ const LandingPage = () => {
 
           {/*Nav Links*/}
           <div className="flex items-center space-x-6">
-            <a href="/" className="text-gray-700 hover:text-blue-500">
+            <a href="/" className="text-blue-500 font-semibold hover:text-blue-700 cursor-not-allowed pointer-events-none">
               Home
             </a>
             <a href="/aboutus" className="text-gray-700 hover:text-blue-500">
@@ -70,9 +105,11 @@ const LandingPage = () => {
               physical well-being through personalized tools and AI-driven
               insights.
             </p>
-            <button className="bg-white text-blue-700 cursor-pointer font-semibold px-6 py-2 mb-14 rounded hover:bg-gray-200">
+            <a
+              href="/signin"
+              className="bg-white text-blue-700 font-semibold px-6 py-2 mb-14 rounded hover:bg-gray-200 inline-block cursor-pointer">
               Get Started
-            </button>
+            </a>
           </div>
         </div>
       </div>
@@ -186,9 +223,11 @@ const LandingPage = () => {
               </div>
             </div>
 
-            <button className="bg-blue-600 text-white cursor-pointer px-5 py-2 rounded hover:bg-blue-700">
+            <a
+              href="/signin"
+              className="bg-blue-600 text-white px-5 py-2 rounded hover:bg-blue-700 inline-block cursor-pointer">
               Get Started
-            </button>
+            </a>
           </div>
 
           {/* Right Image */}
@@ -217,9 +256,11 @@ const LandingPage = () => {
             </p>
           </div>
           <div className="shrink-0">
-            <button className="bg-blue-500 text-white cursor-pointer px-5 py-2 rounded hover:bg-blue-600 transition">
+            <a
+              href="/signin"
+              className="bg-blue-500 text-white px-5 py-2 rounded hover:bg-blue-600 transition inline-block cursor-pointer">
               Get Started
-            </button>
+            </a>
           </div>
         </div>
 
@@ -352,9 +393,11 @@ const LandingPage = () => {
               optimizing health and wellness operations, currently delivering a
               robust suite of services in 5+ countries across five continents.
             </p>
-            <button className="bg-blue-600 text-white cursor-pointer px-4 py-2 rounded hover:bg-blue-700">
+            <a
+              href="/signin"
+              className="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700 inline-block cursor-pointer">
               Get Started
-            </button>
+            </a>
           </div>
           {/* Right Section */}
           <div className="relative flex items-center justify-center h-80">
@@ -391,49 +434,32 @@ const LandingPage = () => {
 
         {/* FAQ + Side Card */}
         <div className="flex flex-col lg:flex-row gap-8 items-start justify-center">
-          {/* FAQ Accordion (hard-coded) */}
+          {/* FAQ Accordion */}
           <div className="flex-1 max-w-2xl w-full">
-            {/* 1 */}
-            <div className="border-b">
-              <button className="w-full text-left py-5 px-2 flex items-center justify-between text-black">
-                <span>Is EquiLife free to use?</span>
-                <span className="text-xl">+</span>
-              </button>
-            </div>
-            {/* 2 (open) */}
-            <div className="border-b">
-              <button className="w-full text-left py-5 px-2 flex items-center justify-between font-semibold text-blue-600">
-                <span>How does the mental health assessment work?</span>
-                <span className="text-xl">×</span>
-              </button>
-              <div className="px-2 pb-5 text-gray-600 text-sm">
-                Our AI-powered assessment uses scientifically validated
-                questionnaires to evaluate stress, mood, and emotional
-                well-being. Your results are private and used to suggest
-                personalized coping strategies.
+            {faqItems.map((item, index) => (
+              <div key={index} className="border-b">
+                <button
+                  onClick={() => toggleFAQ(index)}
+                  className={`w-full text-left py-5 px-2 flex items-center justify-between transition-colors cursor-pointer ${
+                    expandedItems[index]
+                      ? "font-semibold text-blue-600"
+                      : "text-black"
+                  }`}>
+                  <span>{item.question}</span>
+                  <span className="text-xl transition-transform duration-300">
+                    {expandedItems[index] ? "×" : "+"}
+                  </span>
+                </button>
+                <div
+                  className={`overflow-hidden transition-all duration-300 ease-in-out ${
+                    expandedItems[index] ? "max-h-96" : "max-h-0"
+                  }`}>
+                  <div className="px-2 pb-5 text-gray-600 text-sm">
+                    {item.answer}
+                  </div>
+                </div>
               </div>
-            </div>
-            {/* 3 */}
-            <div className="border-b">
-              <button className="w-full text-left py-5 px-2 flex items-center justify-between text-black">
-                <span>How accurate is the nutrition calculator?</span>
-                <span className="text-xl">+</span>
-              </button>
-            </div>
-            {/* 4 */}
-            <div className="border-b">
-              <button className="w-full text-left py-5 px-2 flex items-center justify-between text-black">
-                <span>Can I interact with other users?</span>
-                <span className="text-xl">+</span>
-              </button>
-            </div>
-            {/* 5 */}
-            <div className="border-b last:border-b-0">
-              <button className="w-full text-left py-5 px-2 flex items-center justify-between text-black">
-                <span>How does AI give personalized suggestions?</span>
-                <span className="text-xl">+</span>
-              </button>
-            </div>
+            ))}
           </div>
 
           {/* Side Card */}
@@ -444,9 +470,11 @@ const LandingPage = () => {
             <p className="text-gray-500 mb-5 text-sm">
               That’s ok. Just drop a message and we will get back to you ASAP.
             </p>
-            <button className="bg-blue-500 text-white cursor-pointer px-5 py-2 rounded hover:bg-blue-600 transition">
+            <a
+              href="/signin"
+              className="bg-blue-500 text-white px-5 py-2 rounded hover:bg-blue-600 transition inline-block cursor-pointer">
               Get Started
-            </button>
+            </a>
           </div>
         </div>
       </section>
@@ -541,8 +569,8 @@ const LandingPage = () => {
         {/* Horizontal Divider */}
         <div className="max-w-6xl mx-auto px-32 border-t border-white "></div>
         {/* Copyright */}
-        <div className="flex max-w-7xl pl-26 py-4 text-left text-gray-300 text-sm">
-          &copy; Copyright 2025 EquiLife | All rights reserved |{" "}
+        <div className="w-full py-4 text-center text-gray-300 text-sm">
+          &copy; Copyright 2026 EquiLife | All rights reserved |{" "}
           <span>
             <a href="#" className="font-medium underline">
               Terms and Conditions

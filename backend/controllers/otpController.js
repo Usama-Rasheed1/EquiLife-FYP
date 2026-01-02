@@ -325,3 +325,120 @@ exports.resendEmailOTP = async (req, res) => {
     });
   }
 };
+
+/**
+ * Request password-reset OTP
+ * POST /auth/request-password-reset
+ */
+exports.requestPasswordReset = async (req, res) => {
+  const { email } = req.body;
+  try {
+    if (!email) return res.status(400).json({ ok: false, message: 'Email is required' });
+
+    const user = await User.findOne({ email });
+    if (!user) {
+      return res.json({ ok: true, message: 'If email exists, a reset OTP was sent.' });
+    }
+
+    let otpRecord = await OTP.findOne({ userId: user._id, email });
+    const otpCode = generateOTP();
+    const otpHash = hashOTP(otpCode);
+    const expiresAt = getOTPExpiryTime();
+
+    if (otpRecord) {
+      if ((otpRecord.resendCount || 0) >= 3) {
+        return res.status(429).json({ ok: false, message: 'Maximum resend attempts exceeded. Please try again later.' });
+      }
+      otpRecord.otpHash = otpHash;
+      otpRecord.expiresAt = expiresAt;
+      otpRecord.attempts = 0;
+      otpRecord.resendCount = (otpRecord.resendCount || 0) + 1;
+      await otpRecord.save();
+    } else {
+      otpRecord = await OTP.create({ userId: user._id, email, otpHash, expiresAt, attempts: 0, resendCount: 1 });
+    }
+
+    const emailSent = await sendOTPEmail(email, otpCode);
+    if (!emailSent) console.warn(`[OTP] Password reset email sending failed for ${email}`);
+
+    return res.json({ ok: true, message: 'If email exists, a reset OTP was sent.' });
+  } catch (err) {
+    console.error('Request password reset error:', err);
+    return res.status(500).json({ ok: false, message: 'Error requesting password reset' });
+  }
+};
+
+/**
+ * Verify password-reset OTP without changing password
+ * POST /auth/verify-reset-otp
+ */
+exports.verifyPasswordResetOTP = async (req, res) => {
+  const { email, otp } = req.body;
+  try {
+    if (!email || !otp) return res.status(400).json({ ok: false, message: 'Email and OTP are required' });
+
+    const user = await User.findOne({ email });
+    if (!user) return res.status(400).json({ ok: false, message: 'Invalid request' });
+
+    const otpRecord = await OTP.findOne({ userId: user._id, email });
+    if (!otpRecord) return res.status(400).json({ ok: false, message: 'OTP not found or expired' });
+
+    if (new Date() > otpRecord.expiresAt) return res.status(400).json({ ok: false, message: 'OTP has expired. Request a new one.' });
+    if (otpRecord.attempts >= 5) return res.status(429).json({ ok: false, message: 'Maximum verification attempts exceeded. Request new OTP.' });
+
+    let isValid;
+    try { isValid = verifyOTP(otp, otpRecord.otpHash); } catch (err) { console.error('OTP verification error:', err); return res.status(400).json({ ok: false, message: 'Invalid OTP' }); }
+
+    if (!isValid) {
+      otpRecord.attempts += 1;
+      await otpRecord.save();
+      return res.status(400).json({ ok: false, message: otpRecord.attempts < 5 ? `Invalid OTP. ${5 - otpRecord.attempts} attempts remaining.` : 'Maximum attempts exceeded. Request new OTP.' });
+    }
+
+    return res.json({ ok: true, message: 'OTP verified' });
+  } catch (err) {
+    console.error('Verify reset OTP error:', err);
+    return res.status(500).json({ ok: false, message: 'Error verifying OTP' });
+  }
+};
+
+/**
+ * Reset password using OTP
+ * POST /auth/reset-password
+ */
+exports.resetPasswordWithOTP = async (req, res) => {
+  const { email, otp, newPassword } = req.body;
+  try {
+    if (!email || !otp || !newPassword) return res.status(400).json({ ok: false, message: 'Email, OTP and new password are required' });
+
+    const user = await User.findOne({ email });
+    if (!user) return res.status(400).json({ ok: false, message: 'Invalid request' });
+
+    const otpRecord = await OTP.findOne({ userId: user._id, email });
+    if (!otpRecord) return res.status(400).json({ ok: false, message: 'OTP not found or expired' });
+
+    if (new Date() > otpRecord.expiresAt) return res.status(400).json({ ok: false, message: 'OTP has expired. Request a new one.' });
+    if (otpRecord.attempts >= 5) return res.status(429).json({ ok: false, message: 'Maximum verification attempts exceeded. Request new OTP.' });
+
+    let isValid;
+    try { isValid = verifyOTP(otp, otpRecord.otpHash); } catch (err) { console.error('OTP verification error:', err); return res.status(400).json({ ok: false, message: 'Invalid OTP' }); }
+
+    if (!isValid) {
+      otpRecord.attempts += 1;
+      await otpRecord.save();
+      return res.status(400).json({ ok: false, message: otpRecord.attempts < 5 ? `Invalid OTP. ${5 - otpRecord.attempts} attempts remaining.` : 'Maximum attempts exceeded. Request new OTP.' });
+    }
+
+    // Set new password (pre-save hook hashes it)
+    user.password = newPassword;
+    await user.save();
+
+    // Delete OTP record
+    await OTP.deleteOne({ _id: otpRecord._id });
+
+    return res.json({ ok: true, message: 'Password reset successfully. Please login with your new password.' });
+  } catch (err) {
+    console.error('Reset password error:', err);
+    return res.status(500).json({ ok: false, message: 'Error resetting password' });
+  }
+};

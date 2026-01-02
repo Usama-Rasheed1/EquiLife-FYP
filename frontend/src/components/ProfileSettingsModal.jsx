@@ -2,6 +2,21 @@ import React, { useState, useEffect } from "react";
 import AppModal from "./AppModal";
 import axios from "axios";
 import { Eye, EyeOff, ChevronDown, ChevronUp } from "lucide-react";
+import { useDispatch } from 'react-redux';
+import { setUserData } from '../store/userSlice';
+
+// small helper to compute age from dob
+const calculateAge = (dob) => {
+  if (!dob) return undefined;
+  const birthDate = new Date(dob);
+  const today = new Date();
+  let age = today.getFullYear() - birthDate.getFullYear();
+  const monthDiff = today.getMonth() - birthDate.getMonth();
+  if (monthDiff < 0 || (monthDiff === 0 && today.getDate() < birthDate.getDate())) {
+    age--;
+  }
+  return age;
+};
 
 const ProfileSettingsModal = ({ isOpen, onClose, userData, onSaved }) => {
   // State
@@ -21,6 +36,8 @@ const ProfileSettingsModal = ({ isOpen, onClose, userData, onSaved }) => {
   const [showConfirmPass, setShowConfirmPass] = useState(false);
   const [showCurrentPass, setShowCurrentPass] = useState(false);
   const [passwordVisible, setPasswordVisible] = useState(false);
+
+  const dispatch = useDispatch();
 
   // Load user data from backend
   useEffect(() => {
@@ -49,6 +66,10 @@ const ProfileSettingsModal = ({ isOpen, onClose, userData, onSaved }) => {
           } else {
             setProfilePhoto("/user.jpg");
           }
+          // update redux store with fresh values
+          try {
+            dispatch(setUserData({ fullName: u.fullName, profilePhoto: u.profilePhoto || undefined, weight: u.weightKg || undefined, dob: u.dob || undefined, age: u.age || undefined }));
+          } catch (e) {}
         }
       } catch (err) {
         console.error("Load profile error:", err);
@@ -169,6 +190,21 @@ const ProfileSettingsModal = ({ isOpen, onClose, userData, onSaved }) => {
       // Reset photo file state after successful save
       setProfilePhotoFile(null);
       
+      // update redux store with saved values (only after successful save)
+      try {
+        dispatch(setUserData({
+          fullName,
+          profilePhoto,
+          weight: weight ? Number(weight) : undefined,
+          dob: dob || undefined,
+          age: dob ? calculateAge(dob) : undefined,
+          heightCm: height ? Number(height) : undefined,
+          gender: gender ? gender.toLowerCase() : undefined,
+        }));
+      } catch (e) {
+        // ignore
+      }
+
       // notify parent about updated profile
       try {
         if (typeof onSaved === 'function') {
