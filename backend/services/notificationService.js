@@ -30,13 +30,11 @@ async function createFromTemplate(userId, templateId, options = {}) {
     const windowStart = new Date(Date.now() - options.preventDuplicateDays * 24 * 3600 * 1000);
     const exists = await Notification.findOne({ userId, templateId: tpl.id, createdAt: { $gte: windowStart } });
     if (exists) {
-      console.debug('[notifications] duplicate prevented', { userId: String(userId), templateId: tpl.id });
       return null; // already exists in window
     }
   }
 
   const note = await Notification.create(payload);
-  console.debug('[notifications] created', { userId: String(userId), templateId: payload.templateId, id: note._id });
   return note;
 }
 
@@ -61,13 +59,10 @@ async function createInitialNotifications(userId) {
   if (!u) return;
 
   // Welcome
-  console.debug('[notifications] createInitialNotifications for', String(userId));
   const w = await createFromTemplate(userId, 'WELCOME', { preventDuplicateDays: 30 });
-  if (w) console.debug('[notifications] welcome created', w._id);
 
   // Profile reminder - don't duplicate if recently created
   const p = await createFromTemplate(userId, 'PROFILE_REMINDER', { preventDuplicateDays: 30 });
-  if (p) console.debug('[notifications] profile reminder created', p._id);
 }
 
 module.exports = { createFromTemplate, fetchForUser, unreadCount, markRead, createInitialNotifications };

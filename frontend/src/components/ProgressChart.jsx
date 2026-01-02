@@ -22,7 +22,7 @@ const ActivitySummary = () => {
           { name: "Meal Logging Accuracy", value: summary.mealLoggingAccuracy, color: "#6b7280" },
         ]);
       } catch (error) {
-        console.error('Error loading activity summary:', error);
+        // Error handled silently
       } finally {
         setLoading(false);
       }

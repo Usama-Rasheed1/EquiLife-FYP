@@ -57,6 +57,55 @@ userSchema.pre("save", async function (next) {
   next();
 });
 
+// Auto-calculate BMI and BMR using existing formulas when height/weight are available
+userSchema.pre("save", function (next) {
+  // Auto-calculate age from dob if available
+  if (this.dob) {
+    const birthDate = new Date(this.dob);
+    const today = new Date();
+    let calculatedAge = today.getFullYear() - birthDate.getFullYear();
+    const monthDiff = today.getMonth() - birthDate.getMonth();
+    if (monthDiff < 0 || (monthDiff === 0 && today.getDate() < birthDate.getDate())) {
+      calculatedAge--;
+    }
+    this.age = calculatedAge;
+  }
+  
+  // Calculate BMI if height and weight are available
+  if (this.heightCm && this.weightKg) {
+    const w = this.weightKg;
+    const h = this.heightCm / 100; // Convert cm to meters
+    
+    // BMI calculation - WHO standard formula (same as FitnessCalculations.jsx)
+    const bmiValue = w / (h * h);
+    this.bmi = Math.max(10, Math.min(60, Math.round(bmiValue * 10) / 10));
+    
+    // Calculate BMR if age and gender are available
+    if (this.age && this.gender) {
+      // BMR calculation - Mifflin-St Jeor Equation (same as FitnessCalculations.jsx)
+      let bmrValue;
+      if (this.gender === "male") {
+        bmrValue = 10 * w + 6.25 * this.heightCm - 5 * this.age + 5;
+      } else {
+        bmrValue = 10 * w + 6.25 * this.heightCm - 5 * this.age - 161;
+      }
+      this.bmr = Math.max(800, Math.min(4000, Math.round(bmrValue)));
+      
+      // Calculate daily calories for different activity levels (same as FitnessCalculations.jsx)
+      if (this.bmr) {
+        this.dailyCalories = {
+          sedentary: Math.round(this.bmr * 1.2),
+          lightActivity: Math.round(this.bmr * 1.375),
+          moderateActivity: Math.round(this.bmr * 1.55),
+          active: Math.round(this.bmr * 1.725),
+          veryActive: Math.round(this.bmr * 1.9)
+        };
+      }
+    }
+  }
+  next();
+});
+
 // Remove use_xp field if it exists (cleanup for old documents)
 // This ensures the deprecated field is never saved, even if present in the document
 userSchema.pre("save", function (next) {
