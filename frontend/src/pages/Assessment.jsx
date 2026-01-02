@@ -141,7 +141,8 @@ const Assessment = () => {
         
         // Transform into trendData format for compatibility with existing graphs
         const formattedData = weeks.map((week, index) => {
-          const weekNum = index + 1;
+          // Extract week number from "Week X" format
+          const weekNum = parseInt(week.split(' ')[1]);
           return {
             week: weekNum,
             anxiety: anxiety[index],

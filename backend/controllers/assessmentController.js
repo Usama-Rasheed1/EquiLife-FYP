@@ -2,11 +2,11 @@ const Assessment = require("../models/Assessment");
 const AssessmentResult = require("../models/AssessmentResult");
 const AssessmentAttempt = require("../models/AssessmentAttempt");
 const WeeklyAssessmentSummary = require("../models/WeeklyAssessmentSummary");
+const User = require("../models/User");
 const {
   getWeekStartDate,
   getDayOfWeek,
   hasAssessmentToday,
-  getLastNWeekStarts,
 } = require("../utils/dateUtils");
 
 /**
@@ -64,7 +64,15 @@ exports.getAssessmentQuestions = async (req, res) => {
   try {
     const { assessmentId } = req.params;
 
-    const assessment = await Assessment.findById(assessmentId);
+    // Try to find by _id first (if it's a valid ObjectId), then by shortName
+    let assessment;
+    if (assessmentId.match(/^[0-9a-fA-F]{24}$/)) {
+      assessment = await Assessment.findById(assessmentId);
+    } else {
+      // Query by shortName if not a valid ObjectId
+      assessment = await Assessment.findOne({ shortName: assessmentId });
+    }
+    
     if (!assessment) {
       return res.status(404).json({ ok: false, message: "Assessment not found" });
     }
@@ -112,8 +120,14 @@ exports.submitAssessment = async (req, res) => {
         .json({ ok: false, message: "Invalid answers format" });
     }
 
-    // Fetch assessment
-    const assessment = await Assessment.findById(assessmentId);
+    // Fetch assessment - try by _id first, then by shortName
+    let assessment;
+    if (assessmentId.match(/^[0-9a-fA-F]{24}$/)) {
+      assessment = await Assessment.findById(assessmentId);
+    } else {
+      assessment = await Assessment.findOne({ shortName: assessmentId });
+    }
+    
     if (!assessment) {
       return res.status(404).json({ ok: false, message: "Assessment not found" });
     }
@@ -162,6 +176,8 @@ exports.submitAssessment = async (req, res) => {
     const severityLabel = mapScoreToSeverity(assessment.name, totalScore);
 
     // ============ SAVE LEGACY RESULT ============
+    // Stores complete assessment result with all answers and score
+    // This is the source of truth for the full submission data
     const result = await AssessmentResult.create({
       userId,
       assessmentId: assessment._id,
@@ -172,6 +188,7 @@ exports.submitAssessment = async (req, res) => {
     });
 
     // ============ SAVE DAILY ATTEMPT ============
+    // Stores daily tracking: tracks one submission per day per assessment type
     const now = new Date();
     const weekStartDate = getWeekStartDate(now);
     const dayOfWeek = getDayOfWeek(now);
@@ -179,36 +196,59 @@ exports.submitAssessment = async (req, res) => {
     const attempt = await AssessmentAttempt.create({
       userId,
       assessmentType: assessment.name,
-      score: totalScore,
-      severity: severityLabel,
+      score: totalScore,  // ✓ Matches AssessmentResult.totalScore
+      severity: severityLabel,  // ✓ Matches AssessmentResult.severityLabel
       takenAt: now,
       weekStartDate,
       dayOfWeek,
     });
 
     // ============ UPDATE WEEKLY SUMMARY ============
-    // Determine which array field to update based on assessment type
-    let updateField;
-    if (assessment.name === "GAD-7") {
-      updateField = "gadScores";
-    } else if (assessment.name === "PHQ-9") {
-      updateField = "phqScores";
-    } else if (assessment.name === "GHQ-12") {
-      updateField = "ghqScores";
+    // Stores one value per assessment type per week
+    // Same submission score is used here (consistent with AssessmentResult)
+    // Fetch latest week record for this user
+    const latestWeekRecord = await WeeklyAssessmentSummary.findOne({ userId })
+      .sort({ weekNumber: -1 })
+      .lean();
+
+    let weekNumber;
+    let updateObj = { lastUpdatedAt: now };
+
+    if (!latestWeekRecord) {
+      // First assessment ever - create Week 1
+      weekNumber = 1;
+    } else {
+      // Calculate week difference from last update
+      const timeDiffMs = now - new Date(latestWeekRecord.lastUpdatedAt);
+      const diffWeeks = Math.floor(timeDiffMs / (1000 * 60 * 60 * 24 * 7));
+
+      if (diffWeeks === 0) {
+        // Same week - use existing week number
+        weekNumber = latestWeekRecord.weekNumber;
+      } else {
+        // New week(s) - increment week number by the difference
+        weekNumber = latestWeekRecord.weekNumber + diffWeeks;
+      }
     }
 
-    // Build the update object: update specific day index
-    const updateObj = {};
-    updateObj[`${updateField}.${dayOfWeek - 1}`] = totalScore; // dayOfWeek is 1–7, array is 0–6
+    // Determine which score field to update based on assessment type
+    if (assessment.name === "GAD-7") {
+      updateObj.gadScore = totalScore;
+    } else if (assessment.name === "PHQ-9") {
+      updateObj.phqScore = totalScore;
+    } else if (assessment.name === "GHQ-12") {
+      updateObj.ghqScore = totalScore;
+    }
 
     // Upsert: create if not exists, update if exists
+    // Same week = overwrite, new week = create new record
     await WeeklyAssessmentSummary.findOneAndUpdate(
-      { userId, weekStartDate },
+      { userId, weekNumber },
       {
         $set: updateObj,
         $setOnInsert: {
           userId,
-          weekStartDate,
+          weekNumber,
         },
       },
       { upsert: true, new: true }
@@ -303,8 +343,8 @@ exports.getLatestScores = async (req, res) => {
  * Get weekly assessment trends for last N weeks
  * Query param: weeks (default 5)
  * 
- * Returns: Array of weekly summaries sorted by week (most recent first)
- * Each summary contains gadScores, phqScores, ghqScores (7-element arrays with nulls)
+ * Returns: Array of weekly summaries sorted by week (most recent)
+ * Each summary contains gadScore, phqScore, ghqScore (single values, not arrays)
  */
 exports.getWeeklyTrends = async (req, res) => {
   try {
@@ -316,40 +356,33 @@ exports.getWeeklyTrends = async (req, res) => {
     // Get number of weeks from query (default 5)
     const weeks = Math.min(parseInt(req.query.weeks || "5"), 52); // Cap at 1 year
 
-    // Get list of week start dates to query
-    const weekStarts = getLastNWeekStarts(weeks);
-
-    // Fetch weekly summaries for all these weeks
-    const summaries = await WeeklyAssessmentSummary.find({
-      userId,
-      weekStartDate: { $in: weekStarts },
-    })
-      .sort({ weekStartDate: -1 })
+    // Fetch the maximum week number for this user
+    const maxWeekRecord = await WeeklyAssessmentSummary.findOne({ userId })
+      .sort({ weekNumber: -1 })
       .lean();
 
-    // Map summaries by weekStartDate for quick lookup
-    const summariesMap = {};
-    summaries.forEach((s) => {
-      summariesMap[s.weekStartDate.getTime()] = s;
-    });
+    // If no assessments yet, return empty array
+    if (!maxWeekRecord) {
+      return res.json({
+        ok: true,
+        weeklyTrends: [],
+      });
+    }
 
-    // Build result: ensure all weeks are present in order (fill gaps with nulls)
-    const result = weekStarts.map((weekStart) => {
-      const existing = summariesMap[weekStart.getTime()];
-      return (
-        existing || {
-          userId,
-          weekStartDate: weekStart,
-          gadScores: [null, null, null, null, null, null, null],
-          phqScores: [null, null, null, null, null, null, null],
-          ghqScores: [null, null, null, null, null, null, null],
-        }
-      );
-    });
+    const maxWeekNumber = maxWeekRecord.weekNumber;
+    const minWeekNumber = Math.max(1, maxWeekNumber - (weeks - 1)); // Last N weeks (inclusive)
+
+    // Fetch all weeks in the range, sorted by week number
+    const summaries = await WeeklyAssessmentSummary.find({
+      userId,
+      weekNumber: { $gte: minWeekNumber, $lte: maxWeekNumber },
+    })
+      .sort({ weekNumber: -1 })
+      .lean();
 
     return res.json({
       ok: true,
-      weeklyTrends: result,
+      weeklyTrends: summaries,
     });
   } catch (err) {
     console.error("Get weekly trends error:", err);
@@ -388,63 +421,64 @@ exports.getGraphTrends = async (req, res) => {
       return res.status(401).json({ ok: false, message: "Unauthorized" });
     }
 
-    // Fetch last 5 weeks only
-    const weeks = 5;
-    const weekStarts = getLastNWeekStarts(weeks);
-
-    // Fetch weekly summaries
-    const summaries = await WeeklyAssessmentSummary.find({
-      userId,
-      weekStartDate: { $in: weekStarts },
-    })
-      .sort({ weekStartDate: -1 })
+    // Fetch the maximum week number for this user
+    const maxWeekRecord = await WeeklyAssessmentSummary.findOne({ userId })
+      .sort({ weekNumber: -1 })
       .lean();
 
-    // Map summaries by weekStartDate
+    // If no assessments yet, return empty graph data
+    if (!maxWeekRecord) {
+      return res.json({
+        ok: true,
+        graphData: {
+          weeks: [],
+          anxiety: [],
+          depression: [],
+          wellbeing: [],
+        },
+      });
+    }
+
+    const maxWeekNumber = maxWeekRecord.weekNumber;
+    const minWeekNumber = Math.max(1, maxWeekNumber - 4); // Last 5 weeks (inclusive)
+
+    // Fetch all weeks in the range
+    const summaries = await WeeklyAssessmentSummary.find({
+      userId,
+      weekNumber: { $gte: minWeekNumber, $lte: maxWeekNumber },
+    })
+      .sort({ weekNumber: 1 })
+      .lean();
+
+    // Map summaries by weekNumber for quick lookup
     const summariesMap = {};
     summaries.forEach((s) => {
-      summariesMap[s.weekStartDate.getTime()] = s;
+      summariesMap[s.weekNumber] = s;
     });
 
-    /**
-     * Helper: Extract most recent (latest day) score from a week's array
-     * Array indexes: 0=Monday, 1=Tuesday, ..., 6=Sunday
-     * Traverse from end (Sunday) backwards to find first non-null
-     */
-    const getMostRecentScore = (scoresArray) => {
-      if (!scoresArray || scoresArray.length === 0) return null;
-      // Traverse from index 6 (Sunday) down to 0 (Monday)
-      for (let i = scoresArray.length - 1; i >= 0; i--) {
-        if (scoresArray[i] !== null) {
-          return scoresArray[i];
-        }
-      }
-      return null; // Entire week has no data
-    };
-
-    // Transform weeks into graph-ready format
+    // Build data for each week in the range (including skipped weeks with nulls)
     const weekLabels = [];
     const anxietyScores = [];
     const depressionScores = [];
     const wellbeingScores = [];
 
-    weekStarts.forEach((weekStart, index) => {
-      // Generate week label: "Week 1" for most recent, "Week 5" for oldest
-      const weekLabel = `Week ${index + 1}`;
-      weekLabels.push(weekLabel);
+    for (let weekNum = minWeekNumber; weekNum <= maxWeekNumber; weekNum++) {
+      weekLabels.push(`Week ${weekNum}`);
 
-      // Get summary for this week (or use defaults if missing)
-      const summary = summariesMap[weekStart.getTime()] || {
-        gadScores: [null, null, null, null, null, null, null],
-        phqScores: [null, null, null, null, null, null, null],
-        ghqScores: [null, null, null, null, null, null, null],
-      };
+      // Get summary for this week (or use nulls if week was skipped)
+      const summary = summariesMap[weekNum];
 
-      // Extract most recent score for each assessment
-      anxietyScores.push(getMostRecentScore(summary.gadScores));
-      depressionScores.push(getMostRecentScore(summary.phqScores));
-      wellbeingScores.push(getMostRecentScore(summary.ghqScores));
-    });
+      if (summary) {
+        anxietyScores.push(summary.gadScore || null);
+        depressionScores.push(summary.phqScore || null);
+        wellbeingScores.push(summary.ghqScore || null);
+      } else {
+        // Skipped week - all nulls
+        anxietyScores.push(null);
+        depressionScores.push(null);
+        wellbeingScores.push(null);
+      }
+    }
 
     return res.json({
       ok: true,
@@ -492,12 +526,68 @@ exports.generateSuggestion = async (req, res) => {
     // Import OpenRouter service
     const { callOpenRouter } = require("../services/openrouterService");
 
+    // Fetch user to include age (prefer `age` field, fall back to DOB calculation)
+    const user = await User.findById(userId).lean();
+    let userAge = user?.age || null;
+    if (!userAge && user?.dob) {
+      const dob = new Date(user.dob);
+      const diffMs = Date.now() - dob.getTime();
+      userAge = Math.floor(diffMs / (1000 * 60 * 60 * 24 * 365.25));
+    }
+
+    // Map assessmentType -> weekly field
+    const scoreFieldMap = {
+      "GAD-7": "gadScore",
+      "PHQ-9": "phqScore",
+      "GHQ-12": "ghqScore",
+    };
+
+    const scoreField = scoreFieldMap[assessmentType] || null;
+
+    // Fetch recent weekly scores for this assessment type (last 5 weeks)
+    let recentWeeklyScores = [];
+    if (scoreField) {
+      const maxWeekRecord = await WeeklyAssessmentSummary.findOne({ userId })
+        .sort({ weekNumber: -1 })
+        .lean();
+
+      if (maxWeekRecord) {
+        const maxWeekNumber = maxWeekRecord.weekNumber;
+        const minWeekNumber = Math.max(1, maxWeekNumber - 4);
+        const summaries = await WeeklyAssessmentSummary.find({
+          userId,
+          weekNumber: { $gte: minWeekNumber, $lte: maxWeekNumber },
+        })
+          .sort({ weekNumber: 1 })
+          .lean();
+
+        const mapByWeek = {};
+        summaries.forEach((s) => (mapByWeek[s.weekNumber] = s));
+        for (let w = minWeekNumber; w <= maxWeekNumber; w++) {
+          const s = mapByWeek[w];
+          recentWeeklyScores.push(s ? (s[scoreField] ?? null) : null);
+        }
+      }
+    }
+
+    // Fetch AssessmentResult entries for this assessment type
+    const recentResults = await AssessmentResult.find({ userId, assessmentName: assessmentType })
+      .sort({ createdAt: -1 })
+      .lean();
+
     // Build context object for OpenRouter
     const context = {
       assessmentType,
       score,
       severity,
-      trend: trend || [],
+      age: userAge,
+      trend: trend || recentWeeklyScores,
+      recentWeeklyScores,
+      recentResults: recentResults.map((r) => ({
+        totalScore: r.totalScore,
+        severityLabel: r.severityLabel,
+        createdAt: r.createdAt,
+      })),
     };
 
     // Call OpenRouter to generate suggestion

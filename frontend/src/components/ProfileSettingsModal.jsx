@@ -16,8 +16,10 @@ const ProfileSettingsModal = ({ isOpen, onClose, userData, onSaved }) => {
 
   const [newPass, setNewPass] = useState("");
   const [confirmPass, setConfirmPass] = useState("");
+  const [currentPass, setCurrentPass] = useState("");
   const [showNewPass, setShowNewPass] = useState(false);
   const [showConfirmPass, setShowConfirmPass] = useState(false);
+  const [showCurrentPass, setShowCurrentPass] = useState(false);
   const [passwordVisible, setPasswordVisible] = useState(false);
 
   // Load user data from backend
@@ -99,9 +101,12 @@ const ProfileSettingsModal = ({ isOpen, onClose, userData, onSaved }) => {
   const togglePasswordSection = () => setPasswordVisible(!passwordVisible);
 
   // Password validation
-  const passwordRequired = newPass.length > 0 || confirmPass.length > 0;
+  const passwordRequired = newPass.length > 0 || confirmPass.length > 0 || currentPass.length > 0;
   const passwordValid =
-    newPass.length >= 5 && confirmPass.length >= 5 && newPass === confirmPass;
+    currentPass.length > 0 && 
+    newPass.length >= 5 && 
+    confirmPass.length >= 5 && 
+    newPass === confirmPass;
 
   // Save button validation
   const canSave =
@@ -127,19 +132,43 @@ const ProfileSettingsModal = ({ isOpen, onClose, userData, onSaved }) => {
         setSaving(false);
         return;
       }
-      const url = `${import.meta.env.VITE_BACKEND_BASE_URL}/api/auth/profile`;
-      const payload = {
+
+      // Save profile information
+      const profileUrl = `${import.meta.env.VITE_BACKEND_BASE_URL}/api/auth/profile`;
+      const profilePayload = {
         fullName,
         gender: gender ? gender.toLowerCase() : undefined,
         dob: dob || undefined,
         heightCm: height ? Number(height) : undefined,
         weightKg: weight ? Number(weight) : undefined,
-        password: newPass && newPass.length >= 5 && newPass === confirmPass ? newPass : undefined,
-        // Only send profilePhoto if it's a new upload (base64) or existing base64 from DB
         profilePhoto: profilePhotoFile || (profilePhoto && profilePhoto.startsWith('data:image') ? profilePhoto : undefined),
       };
-      await axios.put(url, payload, { headers: { Authorization: `Bearer ${token}` } });
-      setMessage({ type: 'success', text: 'Profile updated' });
+      await axios.put(profileUrl, profilePayload, { headers: { Authorization: `Bearer ${token}` } });
+
+      // Handle password change separately if password fields are filled
+      if (passwordRequired && passwordValid) {
+        const changePasswordUrl = `${import.meta.env.VITE_BACKEND_BASE_URL}/api/auth/change-password`;
+        const passwordPayload = {
+          currentPassword: currentPass,
+          newPassword: newPass,
+        };
+        await axios.post(changePasswordUrl, passwordPayload, { 
+          headers: { Authorization: `Bearer ${token}` } 
+        });
+        
+        // Clear password fields on success
+        setCurrentPass("");
+        setNewPass("");
+        setConfirmPass("");
+        setPasswordVisible(false);
+        setMessage({ type: 'success', text: 'Profile and password updated successfully' });
+      } else {
+        setMessage({ type: 'success', text: 'Profile updated' });
+      }
+
+      // Reset photo file state after successful save
+      setProfilePhotoFile(null);
+      
       // notify parent about updated profile
       try {
         if (typeof onSaved === 'function') {
@@ -155,21 +184,20 @@ const ProfileSettingsModal = ({ isOpen, onClose, userData, onSaved }) => {
       } catch (e) {
         console.error('onSaved callback error:', e);
       }
-      // Reset password fields on success
-      if (newPass && confirmPass) {
-        setNewPass("");
-        setConfirmPass("");
-        setPasswordVisible(false);
-      }
-      // Reset photo file state after successful save
-      setProfilePhotoFile(null);
+
       // close modal after brief delay
       setTimeout(() => {
         setSaving(false);
         onClose();
       }, 800);
     } catch (err) {
-      const msg = err?.response?.data?.message || 'Failed to update profile';
+      let msg = err?.response?.data?.message || 'Failed to update profile';
+      
+      // Check if it's a password change error (incorrect current password, etc)
+      if (err?.response?.status === 401 || err?.response?.data?.message?.toLowerCase().includes('password')) {
+        msg = 'Incorrect current password or password update failed';
+      }
+      
       setMessage({ type: 'error', text: msg });
       setSaving(false);
     }
@@ -293,6 +321,24 @@ const ProfileSettingsModal = ({ isOpen, onClose, userData, onSaved }) => {
 
           {passwordVisible && (
             <div className="grid grid-cols-2 gap-6 mt-3">
+              <div className="relative">
+                <label className="text-sm font-medium">Current Password</label>
+                <input
+                  type={showCurrentPass ? "text" : "password"}
+                  value={currentPass}
+                  onChange={(e) => setCurrentPass(e.target.value)}
+                  className="w-full border rounded-lg p-2 mt-1"
+                />
+                <div
+                  className="absolute right-3 top-[34px] cursor-pointer"
+                  onClick={() => setShowCurrentPass(!showCurrentPass)}
+                >
+                  {showCurrentPass ? <EyeOff size={18} /> : <Eye size={18} />}
+                </div>
+              </div>
+
+              <div></div>
+
               <div className="relative">
                 <label className="text-sm font-medium">New Password</label>
                 <input

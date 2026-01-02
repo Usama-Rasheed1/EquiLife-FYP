@@ -77,9 +77,93 @@ function getLastNWeekStarts(weeks = 5) {
   return result;
 }
 
+/**
+ * Calculate the global week number for a user based on their first assessment.
+ * Week 1 starts when the user takes their first assessment.
+ * 
+ * Algorithm:
+ * 1. Fetch user's most recent assessment (any type)
+ * 2. Calculate week difference between that date and current date
+ * 3. Add difference to the week number of that assessment
+ * 
+ * @param {string} userId - User ID
+ * @param {Model} WeeklyAssessmentSummary - The model to query
+ * @returns {Promise<number>} - Current week number for this user
+ */
+async function calculateCurrentWeekNumber(userId, WeeklyAssessmentSummary) {
+  // Get the most recent assessment (highest week number)
+  const lastRecord = await WeeklyAssessmentSummary.findOne({ userId })
+    .sort({ weekNumber: -1 })
+    .lean();
+
+  if (!lastRecord) {
+    // First time user is taking an assessment
+    return 1;
+  }
+
+  // Calculate number of weeks since the week of the last record
+  const lastWeekStart = new Date(lastRecord.weekStartDate);
+  const currentWeekStart = getWeekStartDate(new Date());
+
+  // Calculate difference in weeks
+  const diffTime = currentWeekStart - lastWeekStart;
+  const diffWeeks = Math.floor(diffTime / (1000 * 60 * 60 * 24 * 7));
+
+  if (diffWeeks === 0) {
+    // Same week as the last assessment
+    return lastRecord.weekNumber;
+  } else {
+    // New week(s) - increment by the difference
+    return lastRecord.weekNumber + diffWeeks;
+  }
+}
+
+/**
+ * Get a user's week number on a specific date.
+ * Used to determine which week a particular assessment belongs to.
+ * 
+ * @param {string} userId - User ID
+ * @param {Date} assessmentDate - The date of the assessment
+ * @param {Model} WeeklyAssessmentSummary - The model to query
+ * @returns {Promise<number>} - Week number for that date
+ */
+async function getWeekNumberForDate(userId, assessmentDate, WeeklyAssessmentSummary) {
+  const weekStart = getWeekStartDate(assessmentDate);
+
+  // Check if a record exists for this user in this week
+  const existingRecord = await WeeklyAssessmentSummary.findOne({
+    userId,
+    weekStartDate: weekStart,
+  }).lean();
+
+  if (existingRecord) {
+    return existingRecord.weekNumber;
+  }
+
+  // If not, calculate what the week number should be
+  // Get the most recent record and calculate from there
+  const lastRecord = await WeeklyAssessmentSummary.findOne({ userId })
+    .sort({ weekNumber: -1 })
+    .lean();
+
+  if (!lastRecord) {
+    // First assessment ever
+    return 1;
+  }
+
+  // Calculate weeks between last record and this assessment date
+  const lastWeekStart = new Date(lastRecord.weekStartDate);
+  const diffTime = weekStart - lastWeekStart;
+  const diffWeeks = Math.floor(diffTime / (1000 * 60 * 60 * 24 * 7));
+
+  return lastRecord.weekNumber + diffWeeks;
+}
+
 module.exports = {
   getWeekStartDate,
   getDayOfWeek,
   hasAssessmentToday,
   getLastNWeekStarts,
+  calculateCurrentWeekNumber,
+  getWeekNumberForDate,
 };

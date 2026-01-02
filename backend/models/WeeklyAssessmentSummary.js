@@ -1,38 +1,51 @@
 const mongoose = require("mongoose");
 
 // Schema for weekly aggregated assessment data
+// One record per user per week (not per day)
 const weeklyAssessmentSummarySchema = new mongoose.Schema(
   {
     userId: {
       type: mongoose.Schema.Types.ObjectId,
       ref: "User",
       required: true,
-    },
-    weekStartDate: {
-      type: Date,
-      required: true,
       index: true,
     },
-    // Arrays of 7 elements (Monday=1 to Sunday=7), null for days without data
-    gadScores: {
-      type: [{ type: Number, min: 0, max: 21 }],
-      default: [null, null, null, null, null, null, null],
+    weekNumber: {
+      type: Number,
+      required: true,
+      min: 1,
     },
-    phqScores: {
-      type: [{ type: Number, min: 0, max: 27 }],
-      default: [null, null, null, null, null, null, null],
+    // Single assessment score per week (null if not taken that week)
+    gadScore: {
+      type: Number,
+      min: 0,
+      max: 21,
+      default: null,
     },
-    ghqScores: {
-      type: [{ type: Number, min: 0, max: 12 }],
-      default: [null, null, null, null, null, null, null],
+    phqScore: {
+      type: Number,
+      min: 0,
+      max: 27,
+      default: null,
+    },
+    ghqScore: {
+      type: Number,
+      min: 0,
+      max: 12,
+      default: null,
+    },
+    // Track when this week record was last updated (used for week calculation)
+    lastUpdatedAt: {
+      type: Date,
+      default: Date.now,
     },
   },
   { timestamps: true }
 );
 
-// Compound index for unique user + week combination
+// Compound unique index for user + week number
 weeklyAssessmentSummarySchema.index(
-  { userId: 1, weekStartDate: 1 },
+  { userId: 1, weekNumber: 1 },
   { unique: true }
 );
 

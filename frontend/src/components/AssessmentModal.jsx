@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from "react";
+import axios from "axios";
 import AppModal from "./AppModal";
 import { ChevronLeft, ChevronRight } from "lucide-react";
 import SuggestionModal from "./suggestionModal";
@@ -207,11 +208,36 @@ const AssessmentModal = ({ isOpen, onClose, testId }) => {
     setAiSuggestion(null);
 
     try {
+      // Try to include user's age if available (optional)
+      let age = null;
+      try {
+        const token = localStorage.getItem("authToken");
+        if (token) {
+          const profileRes = await axios.get(
+            `${import.meta.env.VITE_BACKEND_BASE_URL}/api/auth/profile`,
+            { headers: { Authorization: `Bearer ${token}` } }
+          );
+          const user = profileRes.data?.user;
+          if (user) {
+            if (user.age) age = user.age;
+            else if (user.dob) {
+              const dob = new Date(user.dob);
+              age = Math.floor((Date.now() - dob.getTime()) / (1000 * 60 * 60 * 24 * 365.25));
+            }
+          }
+        }
+      } catch (e) {
+        // If profile fetch fails, continue without age
+        console.warn("Could not fetch profile for age; continuing without age.", e);
+      }
+
+      // Only send minimal context: the selected assessment and its score (and age if available)
       const context = {
         assessmentType: testData.name,
         score: res.score,
         severity: res.severity,
       };
+      if (age) context.age = age;
 
       const response = await assessmentService.generateSuggestion(context);
 
