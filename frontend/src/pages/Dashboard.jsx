@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from "react";
 import Layout from "../components/Layout";
 import SummaryCard from "../components/SummaryCard";
-import ActivitiesChart from "../components/ActivitiesChart";
+import WellnessChart from "../components/WellnessChart";
 import ActionCard from "../components/ActionCard";
 import CommunitySection from "../components/CommunitySection";
 import GamificationTable from "../components/GamificationTable";
@@ -134,7 +134,7 @@ const DashboardLayout = () => {
         const calorieResult = await calculateCalorieData(token);
         setCalorieData(calorieResult);
       } catch (err) {
-        console.error("Error fetching user data:", err);
+        // Error handled silently
       } finally {
         setLoading(false);
       }
@@ -218,8 +218,8 @@ const DashboardLayout = () => {
               />
             </div>
 
-            {/* Activities Chart */}
-            <ActivitiesChart />
+            {/* Wellness Chart */}
+            <WellnessChart />
 
             {/* Action Cards row */}
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">

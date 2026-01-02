@@ -77,4 +77,8 @@ app.get("/api/notifications/ping", (req, res) =>
 );
 console.log("Notification routes mounted at /api/notifications");
 
+// Gamification
+const gamificationRoutes = require("./routes/gamificationRoutes");
+app.use("/api/gamification", gamificationRoutes);
+
 module.exports = app;

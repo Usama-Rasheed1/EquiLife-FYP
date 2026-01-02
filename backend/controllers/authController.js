@@ -16,8 +16,8 @@ exports.register = async (req, res) => {
     const user = await User.create({ fullName, email, password });
   // create initial notifications (welcome, profile reminder)
     notificationService.createInitialNotifications(user._id)
-      .then(() => console.debug('[auth] initial notifications triggered for', String(user._id)))
-      .catch(err => console.error('Notification init error:', err));
+      .then(() => {})
+      .catch(err => {});
     const accessToken = generateAccessToken(user._id);
     return res.status(201).json({ message: "User registered successfully", accessToken });
   } catch (err) {
@@ -35,8 +35,8 @@ exports.login = async (req, res) => {
     const accessToken = generateAccessToken(user._id);
   // On login, create initial notifications if needed (non-blocking)
     notificationService.createInitialNotifications(user._id)
-      .then(() => console.debug('[auth] initial notifications triggered for', String(user._id)))
-      .catch(err => console.error('Notification init error:', err));
+      .then(() => {})
+      .catch(err => {});
     return res.json({ accessToken });
   } catch (err) {
     return res.status(500).json({ message: "Error logging in" });
@@ -46,43 +46,65 @@ exports.login = async (req, res) => {
 // Update profile fields separately
 exports.updateProfile = async (req, res) => {
   const { fullName, gender, dob, age, heightCm, weightKg, password, bmi, bmr, dailyCalories, profilePhoto } = req.body;
+  
   try {
-    const updates = {};
-    if (fullName !== undefined) updates.fullName = fullName;
-    if (gender !== undefined) updates.gender = gender;
-    if (dob !== undefined) updates.dob = dob ? new Date(dob) : null;
-    if (age !== undefined) updates.age = age;
-    if (heightCm !== undefined) updates.heightCm = heightCm;
-    if (weightKg !== undefined) updates.weightKg = weightKg;
-    if (bmi !== undefined) updates.bmi = bmi;
-    if (bmr !== undefined) updates.bmr = bmr;
-    if (dailyCalories !== undefined) updates.dailyCalories = dailyCalories;
-    if (profilePhoto !== undefined) updates.profilePhoto = profilePhoto;
+    const userId = req.user && req.user.id;
+    if (!userId) return res.status(401).json({ message: "Unauthorized" });
+
+    // Find user first, then update and save to trigger pre-save hooks
+    const user = await User.findById(userId);
+    if (!user) return res.status(404).json({ message: "User not found" });
+
+    // Update fields
+    if (fullName !== undefined) user.fullName = fullName;
+    if (gender !== undefined) user.gender = gender;
+    if (dob !== undefined) {
+      user.dob = dob ? new Date(dob) : null;
+      // Calculate age from dob if provided
+      if (dob) {
+        const birthDate = new Date(dob);
+        const today = new Date();
+        let calculatedAge = today.getFullYear() - birthDate.getFullYear();
+        const monthDiff = today.getMonth() - birthDate.getMonth();
+        if (monthDiff < 0 || (monthDiff === 0 && today.getDate() < birthDate.getDate())) {
+          calculatedAge--;
+        }
+        user.age = calculatedAge;
+      }
+    }
+    if (age !== undefined) user.age = age;
+    if (heightCm !== undefined) user.heightCm = heightCm;
+    if (weightKg !== undefined) user.weightKg = weightKg;
+    if (bmi !== undefined) user.bmi = bmi;
+    if (bmr !== undefined) user.bmr = bmr;
+    if (dailyCalories !== undefined) user.dailyCalories = dailyCalories;
+    if (profilePhoto !== undefined) user.profilePhoto = profilePhoto;
     
     // Handle password update separately to ensure it gets hashed
     if (password !== undefined && password !== null && password !== "") {
       if (password.length < 5) {
         return res.status(400).json({ message: "Password must be at least 5 characters" });
       }
-      updates.password = password; // Will be hashed by the model's pre-save hook
+      user.password = password; // Will be hashed by the model's pre-save hook
     }
-
-    const userId = req.user && req.user.id;
-    if (!userId) return res.status(401).json({ message: "Unauthorized" });
-
-    const updated = await User.findByIdAndUpdate(userId, updates, { new: true, runValidators: true }).select("-password");
-    if (!updated) return res.status(404).json({ message: "User not found" });
+    
+    // Save user to trigger pre-save hooks
+    const updated = await user.save();
     
     // Update goal progress if weight was updated
     if (weightKg !== undefined) {
       goalController.updateProgressForGoalType(userId, 'weight').catch(err => {
-        console.error('Error updating weight goal progress:', err);
+        // Error handled silently
       });
     }
     
-    return res.json({ user: updated });
+    // Remove password from response
+    const userResponse = updated.toObject();
+    delete userResponse.password;
+    
+    return res.json({ user: userResponse });
   } catch (err) {
-    console.error("Update profile error:", err);
+    // Error handled silently
     return res.status(500).json({ message: "Error updating profile" });
   }
 };
@@ -91,31 +113,52 @@ exports.updateProfile = async (req, res) => {
 exports.saveFitnessCalculations = async (req, res) => {
   try {
     const { weight, height, dob, gender, bmi, bmr, dailyCalories } = req.body;
+    
     const userId = req.user && req.user.id;
     if (!userId) return res.status(401).json({ message: "Unauthorized" });
 
-    const updates = {};
-    if (weight !== undefined) updates.weightKg = weight;
-    if (height !== undefined) updates.heightCm = height;
-    if (dob !== undefined) updates.dob = dob ? new Date(dob) : null;
-    if (gender !== undefined) updates.gender = gender;
-    if (bmi !== undefined) updates.bmi = bmi;
-    if (bmr !== undefined) updates.bmr = bmr;
-    if (dailyCalories !== undefined) updates.dailyCalories = dailyCalories;
+    // Find user first, then update and save to trigger pre-save hooks
+    const user = await User.findById(userId);
+    if (!user) return res.status(404).json({ message: "User not found" });
 
-    const updated = await User.findByIdAndUpdate(userId, updates, { new: true, runValidators: true }).select("-password");
-    if (!updated) return res.status(404).json({ message: "User not found" });
+    // Update fields
+    if (weight !== undefined) user.weightKg = weight;
+    if (height !== undefined) user.heightCm = height;
+    if (dob !== undefined) user.dob = dob ? new Date(dob) : null;
+    if (gender !== undefined) user.gender = gender;
+    if (bmi !== undefined) user.bmi = bmi;
+    if (bmr !== undefined) user.bmr = bmr;
+    if (dailyCalories !== undefined) user.dailyCalories = dailyCalories;
+
+    // Calculate age from dob if provided
+    if (dob) {
+      const birthDate = new Date(dob);
+      const today = new Date();
+      let age = today.getFullYear() - birthDate.getFullYear();
+      const monthDiff = today.getMonth() - birthDate.getMonth();
+      if (monthDiff < 0 || (monthDiff === 0 && today.getDate() < birthDate.getDate())) {
+        age--;
+      }
+      user.age = age;
+    }
+    
+    // Save user to trigger pre-save hooks
+    const updated = await user.save();
     
     // Update goal progress if weight was updated
     if (weight !== undefined) {
       goalController.updateProgressForGoalType(userId, 'weight').catch(err => {
-        console.error('Error updating weight goal progress:', err);
+        // Error handled silently
       });
     }
     
-    return res.json({ user: updated, message: "Fitness calculations saved successfully" });
+    // Remove password from response
+    const userResponse = updated.toObject();
+    delete userResponse.password;
+    
+    return res.json({ user: userResponse, message: "Fitness calculations saved successfully" });
   } catch (err) {
-    console.error("Save fitness calculations error:", err);
+    // Error handled silently
     return res.status(500).json({ message: "Error saving fitness calculations" });
   }
 };
@@ -131,7 +174,7 @@ exports.getProfile = async (req, res) => {
 
     return res.json({ user });
   } catch (err) {
-    console.error('Get profile error:', err);
+    // Error handled silently
     return res.status(500).json({ message: 'Error fetching profile' });
   }
 };
@@ -169,7 +212,7 @@ exports.changePassword = async (req, res) => {
 
     return res.json({ ok: true, message: 'Password changed successfully' });
   } catch (err) {
-    console.error('Change password error:', err);
+    // Error handled silently
     return res.status(500).json({ message: 'Error changing password' });
   }
 };

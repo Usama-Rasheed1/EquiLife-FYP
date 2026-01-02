@@ -26,7 +26,7 @@ export async function getActivitySummary() {
       mealLoggingAccuracy: nutrition.percentage
     };
   } catch (error) {
-    console.error('Error fetching activity summary:', error);
+    // Error handled silently
     return {
       assessmentConsistency: 0,
       workoutCompletion: 0,
@@ -82,10 +82,8 @@ async function getWorkoutCompletion() {
     const today = now.toISOString().slice(0, 10);
     const weekStartStr = getWeekStart(today);
     
-    console.log('Fetching fitness data for week:', weekStartStr);
     
     const data = await getExerciseLogsByWeek(weekStartStr, null);
-    console.log('Fitness API response:', data);
     
     const activities = data.activities || {};
     
@@ -102,12 +100,10 @@ async function getWorkoutCompletion() {
       }
     });
     
-    console.log('Calculated:', { activeDays, totalCalories });
-    
     const workoutRate = Math.round((activeDays / 7) * 100);
     return { workoutRate, weeklyCalories: totalCalories };
   } catch (error) {
-    console.error('Workout completion error:', error);
+    // Error handled silently
     return { workoutRate: 0, weeklyCalories: 0 };
   }
 }
@@ -136,7 +132,7 @@ async function getMealLoggingAccuracy() {
     const percentage = Math.round((loggedMeals / 3) * 100);
     return { percentage: Math.min(percentage, 100) };
   } catch (error) {
-    console.error('Meal logging error:', error);
+    // Error handled silently
     return { percentage: 0 };
   }
 }

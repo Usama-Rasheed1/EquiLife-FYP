@@ -90,117 +90,102 @@ const AVAILABLE_CHALLENGES = [
   },
 ];
 
+// Leaderboard data (static for now)
+const LEADERBOARD_DATA = [
+  { id: 1, name: "Usama Rasheed", xp: 289, avatar: "/user.jpg" },
+  { id: 2, name: "Muhammad Tayyab", xp: 276, avatar: "/user.jpg" },
+  { id: 3, name: "Muhammad Rehman", xp: 249, avatar: "/user.jpg" },
+  { id: 4, name: "UbaidUllah", xp: 235, avatar: "/user.jpg" },
+  { id: 5, name: "Tauqir Hayat", xp: 220, avatar: "/user.jpg" },
+  { id: 6, name: "Fatima UMT", xp: 198, avatar: "/user.jpg" },
+  { id: 7, name: "Azeem Sheera", xp: 185, avatar: "/user.jpg" },
+  { id: 8, name: "Ali Ahmed", xp: 172, avatar: "/user.jpg" },
+  { id: 9, name: "Ukasha Sagar", xp: 160, avatar: "/user.jpg" },
+  { id: 10, name: "Tayyab Shehzad", xp: 145, avatar: "/user.jpg" },
+];
+
 const Gamification = () => {
-  const [view, setView] = useState("available"); // "available" or "my-challenges"
+  const [view, setView] = useState("available");
   const [myChallenges, setMyChallenges] = useState([]);
   const [userXP, setUserXP] = useState(0);
-  const [availableChallengesState, setAvailableChallengesState] = useState([]);
   const [showSuccessModal, setShowSuccessModal] = useState(false);
   const [toastMessage, setToastMessage] = useState(null);
-  const [completedChallenges, setCompletedChallenges] = useState([]); // Track completed challenges to prevent XP farming
-  const [leaderboardData, setLeaderboardData] = useState([]);
-  const [leaderboardLoading, setLeaderboardLoading] = useState(true);
+  const [completedChallenges, setCompletedChallenges] = useState([]);
   const backendUrl = import.meta.env.VITE_BACKEND_BASE_URL || 'http://localhost:5001';
 
-  // Load data from localStorage on mount
+  // Load data from backend on mount
   useEffect(() => {
-    const savedChallenges = localStorage.getItem("myChallenges");
-    const savedXP = localStorage.getItem("userXP");
-    const savedCompleted = localStorage.getItem("completedChallenges");
-
-    if (savedChallenges) setMyChallenges(JSON.parse(savedChallenges));
-    if (savedXP) setUserXP(parseInt(savedXP, 10));
-    if (savedCompleted) setCompletedChallenges(JSON.parse(savedCompleted));
-
-    // fetch backend challenges and profile if possible
-    (async () => {
+    const loadGamificationData = async () => {
       const token = localStorage.getItem('authToken');
-      const headers = token ? { Authorization: `Bearer ${token}` } : {};
+      if (!token) return;
       
-      console.log('🎮 Loading gamification data...');
+      const headers = { Authorization: `Bearer ${token}` };
       
       try {
-        console.log('📡 Fetching challenges from backend...');
-        const res = await axios.get(`${backendUrl}/api/gamification/challenges`, { headers });
-        if (res?.data?.ok && Array.isArray(res.data.challenges)) {
-          console.log(`✅ Loaded ${res.data.challenges.length} challenges from backend`);
-          // normalize backend challenge shape into frontend-friendly structure
-          const mapped = res.data.challenges.map(c => ({
-            id: c.id || c._id,
-            _id: c._id,
-            title: c.title,
-            description: c.description,
-            xp: c.xp_points || c.points || 0, // Support new xp_points and legacy points
-            type: c.badgeName || c.type || 'custom', // badgeName is the new field (physical/mental)
-            totalDays: c.totalDays || (c.type === 'daily' ? 1 : (c.type === 'weekly' ? 7 : 1)),
-            cooldownHours: c.cooldownHours || 24,
-            isActive: c.status === 'active' // Map status to isActive for frontend compatibility
+        // Load profile and XP
+        const profileRes = await axios.get(`${backendUrl}/api/gamification/profile`, { headers });
+        if (profileRes?.data?.ok) {
+          const profile = profileRes.data.profile;
+          const userXP = profileRes.data.userXP || profile.totalPoints || 0;
+          
+          setUserXP(userXP);
+          
+          // Set active challenges from backend
+          const activeChallenges = (profile.activeChallenges || []).map(ac => {
+            const challenge = AVAILABLE_CHALLENGES.find(c => c.id == ac.challengeId);
+            return {
+              id: ac.challengeId,
+              title: challenge?.title || 'Unknown Challenge',
+              xp: challenge?.xp || 0,
+              totalDays: challenge?.totalDays || 1,
+              currentProgress: 0,
+              startDate: ac.startedAt,
+              lastUpdateDate: null,
+              status: 'in-progress'
+            };
+          });
+          setMyChallenges(activeChallenges);
+          
+          // Set completed challenges from backend
+          const completed = (profile.completedChallenges || []).map(cc => ({
+            id: cc.challengeId,
+            completedAt: cc.completedAt
           }));
-          setAvailableChallengesState(mapped);
-        } else {
-          console.log('⚠️ Invalid backend response, using local challenges');
-        }
-      } catch (err) {
-        console.log('❌ Backend challenges failed, using local fallback:', err.message);
-        // ignore - keep local AVAILABLE_CHALLENGES
-      }
-
-      try {
-        console.log('👤 Fetching user profile...');
-        const res2 = await axios.get(`${backendUrl}/api/gamification/profile`, { headers });
-        if (res2?.data?.ok && res2.data.profile) {
-          // Use userXP from response (source of truth from User model), fallback to profile.totalPoints
-          const xp = res2.data.userXP !== undefined ? res2.data.userXP : (res2.data.profile.totalPoints || 0);
-          console.log(`💎 User XP: ${xp}`);
-          setUserXP(xp);
-          // set completed challenges from profile
-          const completed = (res2.data.profile.completedChallenges || []).map(cc => ({ id: cc.challengeId, completedAt: cc.completedAt }));
-          console.log(`✅ Completed challenges: ${completed.length}`);
           setCompletedChallenges(completed);
-          // set active challenges from profile (map challengeId -> minimal challenge object)
-          const actives = (res2.data.profile.activeChallenges || []).map(ac => ({ id: ac.challengeId, startDate: ac.startedAt, status: 'in-progress', currentProgress: 0, totalDays: 1 }));
-          console.log(`🎯 Active challenges: ${actives.length}`);
-          setMyChallenges(actives);
-        } else {
-          console.log('⚠️ Invalid profile response');
         }
       } catch (err) {
-        // ignore - offline mode
-        console.log('❌ Profile loading failed, using offline mode:', err.message);
+        console.error('Failed to load gamification data:', err);
+        // Fallback to localStorage for offline mode
+        const savedChallenges = localStorage.getItem("myChallenges");
+        const savedXP = localStorage.getItem("userXP");
+        const savedCompleted = localStorage.getItem("completedChallenges");
+        
+        if (savedChallenges) setMyChallenges(JSON.parse(savedChallenges));
+        if (savedXP) setUserXP(parseInt(savedXP, 10));
+        if (savedCompleted) setCompletedChallenges(JSON.parse(savedCompleted));
       }
-
-      // Fetch leaderboard data
-      try {
-        console.log('🏆 Fetching leaderboard...');
-        const res3 = await axios.get(`${backendUrl}/api/gamification/leaderboard`, { headers });
-        if (res3?.data?.ok && res3.data.leaderboard) {
-          console.log(`🏆 Loaded leaderboard with ${res3.data.leaderboard.length} users`);
-          setLeaderboardData(res3.data.leaderboard);
-        } else {
-          console.log('⚠️ Invalid leaderboard response');
-        }
-      } catch (err) {
-        console.log('❌ Leaderboard loading failed:', err.message);
-        // Fallback to empty array - no static data
-        setLeaderboardData([]);
-      } finally {
-        setLeaderboardLoading(false);
-        console.log('🎮 Gamification data loading complete');
-      }
-    })();
+    };
+    
+    loadGamificationData();
   }, []);
 
-  // Save to localStorage whenever state changes
+  // Save to localStorage as backup only
   useEffect(() => {
-    localStorage.setItem("myChallenges", JSON.stringify(myChallenges));
+    if (myChallenges.length > 0) {
+      localStorage.setItem("myChallenges", JSON.stringify(myChallenges));
+    }
   }, [myChallenges]);
 
   useEffect(() => {
-    localStorage.setItem("userXP", userXP.toString());
+    if (userXP > 0) {
+      localStorage.setItem("userXP", userXP.toString());
+    }
   }, [userXP]);
 
   useEffect(() => {
-    localStorage.setItem("completedChallenges", JSON.stringify(completedChallenges));
+    if (completedChallenges.length > 0) {
+      localStorage.setItem("completedChallenges", JSON.stringify(completedChallenges));
+    }
   }, [completedChallenges]);
 
   // Show toast message
@@ -209,96 +194,55 @@ const Gamification = () => {
     setTimeout(() => setToastMessage(null), 3000);
   };
 
-  // Check if challenge was previously completed (XP exploit prevention)
+  // Check if challenge was previously completed
   const isChallengeCompleted = (challengeId) => {
     return completedChallenges.some((c) => c.id === challengeId && c.completedAt);
   };
 
   // Start a challenge
   const handleStartChallenge = async (challengeId) => {
-    console.log(`🚀 Starting challenge ${challengeId}`);
-    
-    // optimistic guard
     if (myChallenges.some((c) => c.id === challengeId)) {
-      console.log('⚠️ Challenge already started');
       showToast("You already started this challenge");
       return;
     }
     if (isChallengeCompleted(challengeId)) {
-      console.log('⚠️ Challenge already completed');
       showToast("You have already completed this challenge");
       return;
     }
 
-    // Find challenge (either from backend or local)
-    const backendChallenge = availableChallengesState.find(c => (c._id || c.id) == challengeId);
-    const localChallenge = AVAILABLE_CHALLENGES.find((c) => c.id === challengeId);
-    const challenge = backendChallenge || localChallenge;
+    const challenge = AVAILABLE_CHALLENGES.find((c) => c.id === challengeId);
+    if (!challenge) return;
     
-    if (!challenge) {
-      console.log('❌ Challenge not found');
+    const token = localStorage.getItem('authToken');
+    if (!token) {
+      showToast('Please log in to start challenges');
       return;
     }
     
-    console.log(`📝 Challenge details:`, challenge);
-    
-    const token = localStorage.getItem('authToken');
-    const headers = token ? { Authorization: `Bearer ${token}` } : {};
-
-    // Always try to start challenge on backend (accepts challenge metadata)
-    let payload;
-    if (backendChallenge && backendChallenge._id) {
-      // Backend challenge exists - send its _id
-      payload = backendChallenge._id;
-    } else {
-      // Local challenge - send challenge metadata
-                payload = {
-                  id: challenge.id,
-                  _id: challenge.id, // Use frontend id as _id for local challenges
-                  title: challenge.title,
-                  description: challenge.description,
-                  xp: challenge.xp,
-                  xp_points: challenge.xp, // Backend uses 'xp_points' field
-                  points: challenge.xp, // Legacy support
-                  badgeName: challenge.type || 'physical', // Map type to badgeName (physical/mental)
-                  type: challenge.type || 'custom', // Keep for compatibility
-                  totalDays: challenge.totalDays,
-                  cooldownHours: 24 // Default cooldown
-                };
-    }
+    const headers = { Authorization: `Bearer ${token}` };
 
     try {
-      console.log(`📡 Sending start request to backend...`);
-      const res = await axios.post(`${backendUrl}/api/gamification/challenge/start`, { challengeId: payload }, { headers });
-      if (res?.data?.ok && res.data.profile) {
-        console.log('✅ Challenge started successfully on backend');
-        // reflect server state
-        const challengeIdToUse = backendChallenge?._id || challenge.id;
-        setMyChallenges(prev => [...prev, { 
-          id: challengeIdToUse, 
-          title: challenge.title, 
-          currentProgress: 0, 
-          startDate: new Date().toISOString(), 
-          lastUpdateDate: null, 
-          status: 'in-progress', 
+      const res = await axios.post(`${backendUrl}/api/gamification/challenge/start`, { challengeId }, { headers });
+      if (res?.data?.ok) {
+        const newChallenge = {
+          id: challengeId,
+          title: challenge.title,
+          xp: challenge.xp,
           totalDays: challenge.totalDays,
-          xp: challenge.xp
-        }]);
+          currentProgress: 0,
+          startDate: new Date().toISOString(),
+          lastUpdateDate: null,
+          status: 'in-progress'
+        };
+        setMyChallenges(prev => [...prev, newChallenge]);
         setShowSuccessModal(true);
-        return;
       } else {
-        console.log('⚠️ Backend returned invalid response:', res?.data);
+        showToast(res?.data?.message || 'Failed to start challenge');
       }
     } catch (err) {
-      console.log('❌ Backend start failed:', err?.response?.data || err.message);
-      showToast('Failed to start challenge (server) - using offline mode');
+      console.error('Start challenge error:', err);
+      showToast(err?.response?.data?.message || 'Failed to start challenge');
     }
-
-    // fallback to local-only start (offline)
-    console.log('📴 Using offline mode for challenge start');
-    const newChallenge = { ...challenge, currentProgress: 0, startDate: new Date().toISOString(), lastUpdateDate: null, status: 'in-progress' };
-    setMyChallenges([...myChallenges, newChallenge]);
-    setShowSuccessModal(true);
   };
 
   // Handle modal navigation
@@ -309,89 +253,29 @@ const Gamification = () => {
 
   const handleAddMoreChallenges = () => {
     setShowSuccessModal(false);
-    // Stay on available challenges view
   };
 
   // Update challenge progress
-  const handleUpdateProgress = (challengeId) => {
-    console.log(`🔄 Updating progress for challenge ${challengeId}`);
+  const handleUpdateProgress = async (challengeId) => {
     const challenge = myChallenges.find((c) => c.id === challengeId);
-    if (!challenge) {
-      console.log('❌ Challenge not found in active challenges');
-      return;
-    }
+    if (!challenge) return;
 
     const today = new Date().toISOString().split("T")[0];
     const lastUpdate = challenge.lastUpdateDate
       ? new Date(challenge.lastUpdateDate).toISOString().split("T")[0]
       : null;
 
-    // Check if already updated today
     if (lastUpdate === today) {
-      console.log('⚠️ Challenge already updated today');
       alert("You can update this challenge again tomorrow");
       return;
     }
 
+    const newProgress = challenge.currentProgress + 1;
+    const isCompleted = newProgress >= challenge.totalDays;
+    
+    // Update local state immediately
     const updatedChallenges = myChallenges.map((c) => {
       if (c.id === challengeId) {
-        const newProgress = c.currentProgress + 1;
-        const isCompleted = newProgress >= c.totalDays;
-        
-        // Award XP only once when completed (prevent XP farming)
-        if (isCompleted && c.status !== "completed") {
-          console.log(`🎆 Challenge completed! Awarding ${c.xp} XP`);
-          // Check if this challenge was already completed before (XP exploit prevention)
-          const wasPreviouslyCompleted = completedChallenges.some(
-            (comp) => comp.id === challengeId
-          );
-          
-          if (!wasPreviouslyCompleted) {
-            console.log('📡 Attempting server-side completion...');
-            // Always attempt server-side completion (backend accepts challenge metadata)
-            (async () => {
-              const token = localStorage.getItem('authToken');
-              const headers = token ? { Authorization: `Bearer ${token}` } : {};
-              
-              // Check if there's a backend challenge
-              const backendChallenge = availableChallengesState.find(ac => ac.id === c.id || ac._id === c.id);
-              
-              // Send the challengeId that was used when starting the challenge
-              const payload = c.id;
-              
-              try {
-                const res = await axios.post(`${backendUrl}/api/gamification/challenge/complete`, { challengeId: payload }, { headers });
-                if (res?.data?.ok) {
-                  console.log('✅ Challenge completed on backend');
-                  // update XP from server response (userXP is the source of truth from User model)
-                  const newXP = res.data.userXP !== undefined ? res.data.userXP : (res.data.profile?.totalPoints || (userXP + c.xp));
-                  console.log(`💎 XP updated to: ${newXP}`);
-                  setUserXP(newXP);
-                  setCompletedChallenges(prev => [...prev, { id: challengeId, title: c.title, xp: c.xp, completedAt: new Date().toISOString() }]);
-                } else {
-                  console.log('⚠️ Server response:', res?.data);
-                  showToast(`Server error: ${res?.data?.message || 'Could not complete challenge'}`);
-                  // Fallback to offline awarding
-                  console.log('📴 Using offline XP awarding');
-                  setUserXP((prev) => prev + c.xp);
-                  setCompletedChallenges(prev => [...prev, { id: challengeId, title: c.title, xp: c.xp, completedAt: new Date().toISOString() }]);
-                }
-              } catch (err) {
-                console.log('❌ Backend completion failed:', err?.response?.data || err.message);
-                const errorMsg = err?.response?.data?.message || err.message || 'Unknown error';
-                showToast(`Failed to complete challenge: ${errorMsg}`);
-                // Fallback to offline awarding
-                console.log('📴 Using offline XP awarding');
-                setUserXP((prev) => prev + c.xp);
-                setCompletedChallenges(prev => [...prev, { id: challengeId, title: c.title, xp: c.xp, completedAt: new Date().toISOString() }]);
-              }
-            })();
-          } else {
-            console.log('⚠️ XP already awarded for this challenge');
-            showToast("XP already awarded for this challenge");
-          }
-        }
-
         return {
           ...c,
           currentProgress: newProgress,
@@ -401,9 +285,67 @@ const Gamification = () => {
       }
       return c;
     });
-
-    console.log(`🔄 Progress updated for challenge ${challengeId}`);
     setMyChallenges(updatedChallenges);
+
+    // If completed, handle completion
+    if (isCompleted && challenge.status !== "completed") {
+      const wasPreviouslyCompleted = completedChallenges.some(comp => comp.id === challengeId);
+      
+      if (!wasPreviouslyCompleted) {
+        const token = localStorage.getItem('authToken');
+        if (token) {
+          const headers = { Authorization: `Bearer ${token}` };
+          
+          try {
+            const res = await axios.post(`${backendUrl}/api/gamification/challenge/complete`, { challengeId }, { headers });
+            if (res?.data?.ok) {
+              const newXP = res.data.userXP || (userXP + challenge.xp);
+              setUserXP(newXP);
+              setCompletedChallenges(prev => [...prev, { 
+                id: challengeId, 
+                title: challenge.title, 
+                xp: challenge.xp, 
+                completedAt: new Date().toISOString() 
+              }]);
+            } else {
+              console.error('Server response:', res?.data);
+              showToast(`Server error: ${res?.data?.message || 'Could not complete challenge'}`);
+              // Fallback to offline
+              setUserXP(prev => prev + challenge.xp);
+              setCompletedChallenges(prev => [...prev, { 
+                id: challengeId, 
+                title: challenge.title, 
+                xp: challenge.xp, 
+                completedAt: new Date().toISOString() 
+              }]);
+            }
+          } catch (err) {
+            console.error('Complete challenge error:', err);
+            const errorMsg = err?.response?.data?.message || err.message || 'Unknown error';
+            showToast(`Failed to complete challenge: ${errorMsg}`);
+            // Fallback to offline
+            setUserXP(prev => prev + challenge.xp);
+            setCompletedChallenges(prev => [...prev, { 
+              id: challengeId, 
+              title: challenge.title, 
+              xp: challenge.xp, 
+              completedAt: new Date().toISOString() 
+            }]);
+          }
+        } else {
+          // No token, offline mode
+          setUserXP(prev => prev + challenge.xp);
+          setCompletedChallenges(prev => [...prev, { 
+            id: challengeId, 
+            title: challenge.title, 
+            xp: challenge.xp, 
+            completedAt: new Date().toISOString() 
+          }]);
+        }
+      } else {
+        showToast("XP already awarded for this challenge");
+      }
+    }
   };
 
   // Delete a challenge
@@ -413,21 +355,13 @@ const Gamification = () => {
     }
   };
 
-  // Get available challenges (not started and not previously completed)
+  // Get available challenges (exclude started and completed)
   const getAvailableChallenges = () => {
     const startedIds = myChallenges.map((c) => c.id);
     const completedIds = completedChallenges.map((c) => c.id);
-    
-    // Always use local challenges as fallback to ensure something shows
-    const challengeSource = AVAILABLE_CHALLENGES;
-    const available = challengeSource.filter(
+    return AVAILABLE_CHALLENGES.filter(
       (c) => !startedIds.includes(c.id) && !completedIds.includes(c.id)
     );
-    
-    console.log(`📋 Available challenges: ${available.length}/${challengeSource.length}`);
-    console.log('Started IDs:', startedIds);
-    console.log('Completed IDs:', completedIds);
-    return available;
   };
 
   // Get status text and color
@@ -656,48 +590,34 @@ const Gamification = () => {
         {/* Right Section - Leaderboard (Less-Wide) */}
         <div className="w-full lg:w-80 bg-gray-50 border-l border-gray-200 p-3 sm:p-6 overflow-y-auto">
           <h3 className="text-xl font-bold text-gray-800 mb-4">Leaderboard</h3>
-          {leaderboardLoading ? (
-            <div className="text-center py-8 text-gray-500">Loading...</div>
-          ) : leaderboardData.length === 0 ? (
-            <div className="text-center py-8 text-gray-500">
-              <p>No users with XP points yet.</p>
-              <p className="text-sm mt-2">Complete challenges to appear on the leaderboard!</p>
-            </div>
-          ) : (
-            <div className="space-y-3">
-              {leaderboardData.map((user, index) => (
-                <div
-                  key={user.id}
-                  className="flex items-center gap-3 p-3 rounded-lg hover:bg-gray-50 transition-colors"
-                >
-                  <div className={`flex items-center justify-center w-8 h-8 rounded-full font-bold text-sm ${
-                    index === 0 ? 'bg-yellow-100 text-yellow-600' :
-                    index === 1 ? 'bg-gray-100 text-gray-600' :
-                    index === 2 ? 'bg-orange-100 text-orange-600' :
-                    'bg-blue-100 text-blue-600'
-                  }`}>
-                    {index + 1}
-                  </div>
-                  <img
-                    src={user.avatar}
-                    alt={user.name}
-                    className="w-10 h-10 rounded-full object-cover"
-                  />
-                  <div className="flex-1 min-w-0">
-                    <p className="text-sm font-medium text-gray-800 truncate">
-                      {user.name}
-                    </p>
-                  </div>
-                  <div className="flex items-center gap-1">
-                    <Trophy className="text-yellow-500" size={16} />
-                    <span className="text-sm font-bold text-blue-500">
-                      {user.points}
-                    </span>
-                  </div>
+          <div className="space-y-3">
+            {LEADERBOARD_DATA.map((user, index) => (
+              <div
+                key={user.id}
+                className="flex items-center gap-3 p-3 rounded-lg hover:bg-gray-50 transition-colors"
+              >
+                <div className="flex items-center justify-center w-8 h-8 rounded-full bg-blue-100 text-blue-600 font-bold text-sm">
+                  {index + 1}
                 </div>
-              ))}
-            </div>
-          )}
+                <img
+                  src={user.avatar}
+                  alt={user.name}
+                  className="w-10 h-10 rounded-full object-cover"
+                />
+                <div className="flex-1 min-w-0">
+                  <p className="text-sm font-medium text-gray-800 truncate">
+                    {user.name}
+                  </p>
+                </div>
+                <div className="flex items-center gap-1">
+                  <Trophy className="text-yellow-500" size={16} />
+                  <span className="text-sm font-bold text-blue-500">
+                    {user.xp}
+                  </span>
+                </div>
+              </div>
+            ))}
+          </div>
         </div>
       </div>
 
@@ -787,4 +707,3 @@ const Gamification = () => {
 };
 
 export default Gamification;
-
