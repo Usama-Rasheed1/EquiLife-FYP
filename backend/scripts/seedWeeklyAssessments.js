@@ -62,27 +62,27 @@ async function seedWeeklyAssessments() {
       },
       {
         weekNumber: 2,
-        gadScore: 7,      // Slight improvement
-        phqScore: 6,      // Light depression
-        ghqScore: 11,     // Improved wellbeing
+        gadScore: 9,      // From your sample data
+        phqScore: 18,     // From your sample data
+        ghqScore: 12,     // From your sample data (maximum GHQ-12 score)
       },
       {
         weekNumber: 3,
-        gadScore: null,   // Skipped
-        phqScore: 5,      // Improved depression
-        ghqScore: null,   // Skipped
+        gadScore: 7,
+        phqScore: 5,
+        ghqScore: 11,
       },
       {
         weekNumber: 4,
-        gadScore: 5,      // Good improvement in anxiety
-        phqScore: null,   // Not taken
-          ghqScore: 11,     // Good wellbeing
+        gadScore: 5,
+        phqScore: null,
+        ghqScore: 11,
       },
       {
         weekNumber: 5,
-        gadScore: 4,      // Minimal anxiety (trending towards normal)
-        phqScore: 4,      // Minimal depression (great improvement)
-          ghqScore: 12,     // Excellent wellbeing (maximum score)
+        gadScore: 4,
+        phqScore: 4,
+        ghqScore: 12,
       },
     ];
 

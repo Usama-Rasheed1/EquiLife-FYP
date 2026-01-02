@@ -26,18 +26,28 @@ exports.register = async (req, res) => {
   }
 };
 
-// Login
+// Login (Updated: check email verification)
 exports.login = async (req, res) => {
   const { email, password } = req.body;
   try {
     const user = await User.findOne({ email });
     if (!user || !(await bcrypt.compare(password, user.password))) return res.status(401).json({ message: "Invalid credentials" });
+    
+    // Check if email is verified
+    if (!user.isVerified) {
+      return res.status(403).json({ 
+        ok: false,
+        message: "Email not verified. Please check your email for the verification code.",
+        requiresOTPVerification: true 
+      });
+    }
+
     const accessToken = generateAccessToken(user._id);
   // On login, create initial notifications if needed (non-blocking)
     notificationService.createInitialNotifications(user._id)
       .then(() => console.debug('[auth] initial notifications triggered for', String(user._id)))
       .catch(err => console.error('Notification init error:', err));
-    return res.json({ accessToken });
+    return res.json({ ok: true, accessToken });
   } catch (err) {
     return res.status(500).json({ message: "Error logging in" });
   }

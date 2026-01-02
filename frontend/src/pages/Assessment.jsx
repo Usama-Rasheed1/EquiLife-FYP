@@ -286,9 +286,6 @@ const Assessment = () => {
             <h4 className="text-base font-semibold text-gray-900">
               Your Mental Health Trends
             </h4>
-            <p className="text-xs text-gray-500 mb-3">
-              {monthName} {year}
-            </p>
             
             <div className="space-y-3">
               {/* Anxiety (GAD-7) */}

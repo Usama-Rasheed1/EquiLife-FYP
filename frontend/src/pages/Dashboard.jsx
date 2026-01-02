@@ -34,7 +34,7 @@ const DashboardLayout = () => {
       }, 0);
       
       const totalBurned = activitySummary.caloriesBurned || 0;
-      const balance = totalIntake - totalBurned;
+      const balance = Math.ceil(totalIntake - totalBurned);
       const percentage = totalIntake > 0 ? Math.round(Math.abs(balance / totalIntake) * 100) : (totalBurned > 0 ? 100 : 0);
       const label = balance === 0 ? "Balanced" : balance > 0 ? "Calorie Surplus" : "Calorie Deficit";
       

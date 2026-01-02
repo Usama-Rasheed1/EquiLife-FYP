@@ -45,7 +45,9 @@ const userSchema = new mongoose.Schema({
   completedChallenges: { type: [CompletedChallengeSchema], default: [] },
   badges: { type: [String], default: [] },
   // Profile photo stored as base64 string
-  profilePhoto: { type: String }
+  profilePhoto: { type: String },
+  // Email verification status (required for OTP flow)
+  isVerified: { type: Boolean, default: false }
 }, { timestamps: true });
 
 // hash password automatically when created/changed
