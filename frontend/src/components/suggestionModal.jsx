@@ -45,12 +45,7 @@ const SuggestionModal = ({ isOpen, onClose, onTestAgain, suggestion, isLoading, 
           >
             Back
           </button>
-          <button
-            onClick={() => { onTestAgain(); }}
-            className="flex-1 px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition-colors font-medium text-sm"
-          >
-            Test Again
-          </button>
+          
         </div>
       </div>
     </AppModal>

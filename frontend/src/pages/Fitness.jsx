@@ -618,6 +618,12 @@ const Fitness = () => {
     "#06b6d4",
   ];
 
+  // Check if there's any activity data
+  const totalWeekCalories = getWeekTotalCalories();
+  const hasActivityData = totalWeekCalories > 0;
+  const displayChartData = hasActivityData ? chartData : [{ name: 'No Data', value: 1 }];
+  const displayColors = hasActivityData ? COLORS : ['#E5E7EB'];
+
   // Get current item calories (for editing)
   const getCurrentItemCalories = (item, day, index) => {
     if (editIndex?.day === day && editIndex?.index === index && editExercise) {
@@ -956,11 +962,11 @@ const Fitness = () => {
             <h4 className="text-base sm:text-lg font-semibold mb-2 sm:mb-3 text-center">
               Weekly Activity
             </h4>
-            <div className="w-full h-40 sm:h-48 md:h-38 flex justify-center">
+            <div className="w-full h-40 sm:h-48 md:h-38 flex justify-center relative">
               <ResponsiveContainer width="100%" height="100%">
                 <PieChart>
                   <Pie
-                    data={chartData}
+                    data={displayChartData}
                     cx="50%"
                     cy="50%"
                     innerRadius="55%"
@@ -968,8 +974,8 @@ const Fitness = () => {
                     paddingAngle={5}
                     dataKey="value"
                   >
-                    {chartData.map((entry, index) => (
-                      <Cell key={`cell-${index}`} fill={COLORS[index]} />
+                    {displayChartData.map((entry, index) => (
+                      <Cell key={`cell-${index}`} fill={displayColors[index % displayColors.length]} />
                     ))}
                   </Pie>
                   <Legend
@@ -979,11 +985,12 @@ const Fitness = () => {
                   />
                 </PieChart>
               </ResponsiveContainer>
+
             </div>
           </div>
 
           <button onClick={() => navigate('/fitness/calculations')} className="bg-blue-500 hover:bg-blue-600 text-white py-2 px-4 rounded-lg shadow transition-all self-center w-full mt-1 cursor-pointer text-sm sm:text-base">
-            Calculate All
+            Calculate Body Metrics
           </button>
         </div>
       </div>

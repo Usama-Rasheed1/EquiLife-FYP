@@ -12,6 +12,7 @@ const Nutrition = () => {
   const [foodList,setFoodList] = useState([]);
   const [isLogging, setIsLogging] = useState(false);
   const [loggingError, setLoggingError] = useState('');
+  const [userFitnessData, setUserFitnessData] = useState(null);
   // Debouncing refs for quantity changes and deletes
   const debounceTimeouts = useRef({});
   useEffect(() => {
@@ -41,6 +42,26 @@ const Nutrition = () => {
       } catch (error) {
         console.error("Error fetching food list:", error);}};
     fetchFoodList();
+
+    // Fetch user fitness data (BMI, BMR)
+    const fetchUserFitnessData = async () => {
+      try {
+        const token = localStorage.getItem('authToken');
+        if (token) {
+          const response = await fetch(
+            `${import.meta.env.VITE_BACKEND_BASE_URL}/api/auth/profile`,
+            { headers: { Authorization: `Bearer ${token}` } }
+          );
+          if (response.ok) {
+            const data = await response.json();
+            setUserFitnessData(data.user);
+          }
+        }
+      } catch (err) {
+        console.warn('Could not fetch user fitness data', err);
+      }
+    };
+    fetchUserFitnessData();
 
     // Fetch today's meal log from backend
     const fetchTodayMeals = async () => {
@@ -836,15 +857,25 @@ const Nutrition = () => {
           <div>
             <h4 className="text-base sm:text-lg font-semibold mb-1">BMI</h4>
             <p className="text-xl sm:text-2xl font-bold text-blue-600 text-center">
-              22.8
+              {userFitnessData?.bmi ? userFitnessData.bmi.toFixed(1) : "N/A"}
             </p>
+            {!userFitnessData?.bmi && (
+              <p className="text-xs text-gray-500 text-center mt-1">
+                Calculate in Fitness Calculations
+              </p>
+            )}
           </div>
 
           <div>
             <h4 className="text-base sm:text-lg font-semibold mb-1">BMR</h4>
             <p className="text-xl sm:text-2xl font-bold text-green-600 text-center">
-              1550 Kcal
+              {userFitnessData?.bmr ? `${Math.round(userFitnessData.bmr)} Kcal` : "N/A"}
             </p>
+            {!userFitnessData?.bmr && (
+              <p className="text-xs text-gray-500 text-center mt-1">
+                Calculate in Fitness Calculations
+              </p>
+            )}
           </div>
 
           <div className="w-full flex flex-col items-center bg-white rounded-lg shadow-sm p-3 sm:p-4">
@@ -875,11 +906,6 @@ const Nutrition = () => {
                 </PieChart>
               </ResponsiveContainer>
 
-              {macroSum === 0 && (
-                <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
-                  <span className="text-sm text-gray-500">No macros yet</span>
-                </div>
-              )}
             </div>
           </div>
 
@@ -903,7 +929,7 @@ const Nutrition = () => {
               setError(err.message || 'Save failed');
             } finally { setSaving(false); }
           }} className="bg-blue-500 hover:bg-blue-600 text-white py-2 px-4 rounded-lg shadow transition-all self-center w-full mt-1 cursor-pointer text-sm sm:text-base">
-            {saving ? 'Connecting...' : 'Get Help'}
+            {saving ? 'Get Help' : 'Get Help'}
           </button>
         </div>
       </div>

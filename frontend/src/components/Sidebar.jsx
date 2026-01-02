@@ -36,7 +36,7 @@ const Sidebar = ({ activePage, onPageChange, onClose }) => {
 
   return (
     <aside className="w-60 bg-white border-r border-white shadow-md flex flex-col h-full">
-      <div className="flex items-center bg-blue-400 justify-between px-4 py-5 border-white border-b">
+      <div className="flex items-center bg-blue-400 justify-between px-4 py-[18.5px] border-white border-b">
         <div className="flex items-center space-x-2">
           <img src="/logoWhite.png" alt="Logo" className="h-8 w-8" />
           <span className="text-white font-bold text-xl">EquiLife</span>

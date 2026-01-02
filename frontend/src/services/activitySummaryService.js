@@ -1,3 +1,5 @@
+import { getExerciseLogsByWeek, getWeekStart } from './fitnessService';
+
 const BASE = import.meta.env.VITE_BACKEND_BASE_URL || 'http://localhost:5001';
 
 function authHeaders() {
@@ -77,16 +79,14 @@ async function getWorkoutCompletion() {
   try {
     // Get current week start date
     const now = new Date();
-    const weekStart = new Date(now);
-    const day = weekStart.getDay();
-    const diffToMonday = ((day + 6) % 7);
-    weekStart.setDate(weekStart.getDate() - diffToMonday);
-    const weekStartStr = weekStart.toISOString().slice(0, 10);
+    const today = now.toISOString().slice(0, 10);
+    const weekStartStr = getWeekStart(today);
     
-    const res = await fetch(`${BASE}/api/fitness/logs/week?weekStart=${weekStartStr}`, { headers: authHeaders() });
-    if (!res.ok) return { workoutRate: 0, weeklyCalories: 0 };
+    console.log('Fetching fitness data for week:', weekStartStr);
     
-    const data = await res.json();
+    const data = await getExerciseLogsByWeek(weekStartStr, null);
+    console.log('Fitness API response:', data);
+    
     const activities = data.activities || {};
     
     // Count days with activities and total calories
@@ -101,6 +101,8 @@ async function getWorkoutCompletion() {
         });
       }
     });
+    
+    console.log('Calculated:', { activeDays, totalCalories });
     
     const workoutRate = Math.round((activeDays / 7) * 100);
     return { workoutRate, weeklyCalories: totalCalories };

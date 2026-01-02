@@ -41,7 +41,7 @@ const CommunitySection = () => {
       <div className="mt-6 flex justify-center">
         <button 
           onClick={() => navigate('/dashboard/community')}
-          className="inline-flex items-center justify-center bg-blue-600 text-white py-1.5 px-4 rounded-full text-sm font-medium hover:bg-blue-700 shadow-sm transition-colors"
+          className="inline-flex hover:cursor-pointer items-center justify-center bg-blue-600 text-white py-1.5 px-4 rounded-full text-sm font-medium hover:bg-blue-700 shadow-sm transition-colors"
         >
           Join Community
         </button>

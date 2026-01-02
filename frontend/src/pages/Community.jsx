@@ -12,11 +12,11 @@ const Community = () => {
 
   // static predefined groups (not stored in DB)
   const groups = [
-    { id: 'The Lounge', avatar: '/theLounge.png', name: 'The Lounge', message: 'Last message from this group...', time: '2h', starred: true },
-    { id: 'Mind Matters', avatar: '/mindMatters.png', name: 'Mind Matters', message: 'Last message...', time: '4h', starred: false },
-    { id: 'Fit Focus', avatar: '/fitFocus.svg', name: 'Fit Focus', message: 'Last message...', time: '1d', starred: true },
-    { id: 'Nutrition Corner', avatar: '/nutritionCorner.svg', name: 'Nutrition Corner', message: 'Last message...', time: '2d', starred: false },
-    { id: 'Meditation Group', avatar: '/meditation.png', name: 'Meditation Group', message: 'Daily meditation reminder', time: '1w', starred: false }
+    { id: 'The Lounge', avatar: '/theLounge.png', name: 'The Lounge', message: 'General discussion'},
+    { id: 'Mind Matters', avatar: '/mindMatters.png', name: 'Mind Matters', message: 'Mental Health Group'},
+    { id: 'Fit Focus', avatar: '/fitFocus.svg', name: 'Fit Focus', message: 'Fitness and Exercise'},
+    { id: 'Nutrition Corner', avatar: '/nutritionCorner.svg', name: 'Nutrition Corner', message: 'Healthy Eating Tips'},
+    { id: 'Meditation Group', avatar: '/meditation.png', name: 'Meditation Group', message: 'Daily meditation reminder'}
   ];
 
   const filteredGroups = groups.filter((group) =>
@@ -61,18 +61,7 @@ const Community = () => {
           <p className="text-xs text-gray-500 truncate">{group.message}</p>
         </div>
       </div>
-      <div className="flex items-center gap-2">
-        <span className="text-xs text-gray-400">{group.time}</span>
-        {group.starred ? (
-          <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 text-yellow-500" viewBox="0 0 24 24" fill="currentColor">
-            <path d="M12 17.27L18.18 21l-1.64-7.03L22 9.24l-7.19-.61L12 2 9.19 8.63 2 9.24l5.46 4.73L5.82 21z" />
-          </svg>
-        ) : (
-          <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 text-gray-300" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
-            <path strokeLinecap="round" strokeLinejoin="round" d="M11.48 3.499a.562.562 0 0 1 1.04 0l2.125 5.111 5.518.442c.499.04.701.663.321.988l-4.192 3.57 1.285 5.385c.115.483-.408.874-.832.626L12 17.771l-4.745 2.85c-.424.248-.947-.143-.832-.626l1.285-5.385-4.192-3.57c-.38-.325-.178-.948.321-.988l5.518-.442 2.125-5.111z" />
-          </svg>
-        )}
-      </div>
+      
     </div>
   );
 

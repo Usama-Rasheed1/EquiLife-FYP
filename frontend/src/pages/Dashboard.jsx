@@ -224,16 +224,19 @@ const DashboardLayout = () => {
             {/* Action Cards row */}
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
               <ActionCard
+                navigateTo="/dashboard/assessment"
                 title="Assessment"
                 action="Take Assessment"
                 imageSrc="/mentalD.png"
               />
               <ActionCard
+                navigateTo="/dashboard/fitness"
                 title="Fitness"
                 action="Add Workout"
                 imageSrc="/fitnessD.jpg"
               />
               <ActionCard
+                navigateTo="/dashboard/nutrition"
                 title="Nutrition"
                 action="Add Calories"
                 imageSrc="/nutritionD.png"

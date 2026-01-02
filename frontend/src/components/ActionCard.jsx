@@ -29,7 +29,7 @@ const ActionCard = ({ title, action, imageSrc, navigateTo, bgColor = "bg-white" 
       </div>
       <button 
         onClick={handleClick}
-        className="text-blue-600 text-sm font-medium hover:text-blue-700 mt-4 text-left"
+        className="text-blue-600 hover:cursor-pointer text-sm font-medium hover:text-blue-700 mt-4 text-left"
       >
         {action}
       </button>
