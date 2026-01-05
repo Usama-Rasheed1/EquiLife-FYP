@@ -23,7 +23,7 @@
     "jsonwebtoken": "^9.0.2",
     "mongoose": "^8.15.2",
     "node-cron": "^3.0.2",
-    "nodemailer": "^6.9.7",
+    "nodemailer": "^7.0.12",
     "socket.io": "^4.8.3",
     "socket.io-client": "^4.8.3"
   }

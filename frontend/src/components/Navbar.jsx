@@ -3,7 +3,7 @@ import axios from "axios";
 import Notifications from "./Notifications";
 import ProfileSettingsModal from "./ProfileSettingsModal";
 import { useSelector, useDispatch } from 'react-redux';
-import { setUserData } from '../store/userSlice';
+import { setUserData, clearUserData } from '../store/userSlice';
 
 const Navbar = ({ userName, activePage = "dashboard", onToggleSidebar }) => {
   const dispatch = useDispatch();
@@ -142,7 +142,10 @@ const Navbar = ({ userName, activePage = "dashboard", onToggleSidebar }) => {
               <button
                 className="w-full text-left px-4 py-2 hover:bg-gray-100"
                 onClick={() => {
-                  try { localStorage.removeItem('authToken'); } catch (e) {}
+                  try { 
+                    localStorage.removeItem('authToken');
+                    dispatch(clearUserData());
+                  } catch (e) {}
                   // redirect to landing page
                   window.location.href = '/';
                 }}
