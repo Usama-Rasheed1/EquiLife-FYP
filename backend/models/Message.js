@@ -15,6 +15,14 @@ const messageSchema = new mongoose.Schema({
     type: String,
     required: true
   },
+  abuseCount: {
+    type: Number,
+    default: 0
+  },
+  reportedBy: [{
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'User'
+  }],
   // isRead field removed per requirements
 }, { timestamps: true });
 

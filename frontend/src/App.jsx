@@ -1,4 +1,4 @@
-import { BrowserRouter, Routes, Route } from "react-router-dom";
+import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import "./App.css";
 import Signin from "./pages/Signin";
 import Signup from "./pages/Signup";
@@ -19,6 +19,11 @@ import GoalProgress from './pages/GoalProgress';
 import GoalRedirect from './components/GoalRedirect';
 
 import AdminDashboard from './pages/AdminDashboard';
+import Users from './pages/admin/Users';
+import AssessmentsAdmin from './pages/admin/community-management';
+import HighRiskMonitoring from './pages/admin/HighRiskMonitoring';
+import ContentManagement from './pages/admin/ContentManagement';
+import ContentAdminManagement from './pages/admin/ContentAdminManagement';
 
 
 function App() {
@@ -40,7 +45,12 @@ function App() {
         <Route path="/dashboard/community" element={<Community />} />
         <Route path="/dashboard/gamification" element={<GamificationSimplified />} />
         <Route path="/dashboard/goals" element={<Goals />} />
-        <Route path="/admin/dashboard" element={<AdminDashboard />} />
+        <Route path="/admin/dashboard" element={<Navigate to="/admin/users" replace />} />
+        <Route path="/admin/users" element={<Users />} />
+        <Route path="/admin/community-abuse" element={<AssessmentsAdmin />} />
+        <Route path="/admin/high-risk-monitoring" element={<HighRiskMonitoring />} />
+        <Route path="/admin/content-management" element={<ContentManagement />} />
+        <Route path="/admin/content-admin-management" element={<ContentAdminManagement />} />
 
         {/* Redirect any goal detail page back to goals list */}
         <Route path="/dashboard/goals/:goalId" element={<GoalRedirect />} />

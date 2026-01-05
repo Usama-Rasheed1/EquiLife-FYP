@@ -81,4 +81,8 @@ console.log("Notification routes mounted at /api/notifications");
 const gamificationRoutes = require("./routes/gamificationRoutes");
 app.use("/api/gamification", gamificationRoutes);
 
+// Admin routes (community abuse management)
+const adminRoutes = require("./routes/adminRoutes");
+app.use("/admin", adminRoutes);
+
 module.exports = app;

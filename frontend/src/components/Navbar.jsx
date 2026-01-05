@@ -5,7 +5,7 @@ import ProfileSettingsModal from "./ProfileSettingsModal";
 import { useSelector, useDispatch } from 'react-redux';
 import { setUserData, clearUserData } from '../store/userSlice';
 
-const Navbar = ({ userName, activePage = "dashboard", onToggleSidebar }) => {
+const Navbar = ({ userName, activePage = "dashboard", onToggleSidebar, userRole: propUserRole }) => {
   const dispatch = useDispatch();
   const storeUser = useSelector((s) => s.user || {});
   const [name, setName] = useState(userName || storeUser.fullName || '');
@@ -61,7 +61,7 @@ const Navbar = ({ userName, activePage = "dashboard", onToggleSidebar }) => {
           const p = u.profilePhoto
             ? u.profilePhoto.startsWith('data:') ? u.profilePhoto : u.profilePhoto
             : (u.gender && u.gender.toLowerCase() === 'female' ? '/user2.png' : '/user.jpg');
-          dispatch(setUserData({ fullName: u.fullName, profilePhoto: p, weight: u.weightKg || undefined, dob: u.dob || undefined, age: u.age || undefined }));
+          dispatch(setUserData({ fullName: u.fullName, profilePhoto: p, weight: u.weightKg || undefined, dob: u.dob || undefined, age: u.age || undefined, role: u.role || undefined }));
         }
       } catch (err) {
         // ignore
@@ -108,8 +108,10 @@ const Navbar = ({ userName, activePage = "dashboard", onToggleSidebar }) => {
           className="flex items-center space-x-2 lg:space-x-4 relative flex-shrink-0"
           ref={dropdownRef}
         >
-          {/* Notification Component */}
-          <Notifications onOpenSettings={() => setSettingsOpen(true)} navigate={(t) => { if (t) window.location.href = t; }} />
+            {/* Notification Component: show only for simple users */}
+            {((propUserRole && propUserRole === 'user') || (storeUser && storeUser.role === 'user')) && (
+              <Notifications onOpenSettings={() => setSettingsOpen(true)} navigate={(t) => { if (t) window.location.href = t; }} />
+            )}
 
           {/* User Avatar & Name */}
           <div

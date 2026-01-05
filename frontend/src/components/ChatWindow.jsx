@@ -1,12 +1,20 @@
+
 import React, { useState, useRef, useEffect } from "react";
 import EmojiPicker from "emoji-picker-react";
 import axios from "axios";
+import AppModal from "./AppModal";
 
 export default function ChatWindow({ group, messages = [], typingUsers = [], sendMessage, startTyping, stopTyping, isConnected }) {
   const [showPicker, setShowPicker] = useState(false);
   const [message, setMessage] = useState("");
   const [isTyping, setIsTyping] = useState(false);
   const [userData, setUserData] = useState(null);
+  const [reportedMessageIds, setReportedMessageIds] = useState(new Set());
+  const [activeMenuId, setActiveMenuId] = useState(null);
+  const [reportLoadingId, setReportLoadingId] = useState(null);
+  const [showReportModal, setShowReportModal] = useState(false);
+  const [reportTarget, setReportTarget] = useState(null);
+  const [toastMessage, setToastMessage] = useState("");
   const pickerRef = useRef(null);
   const messagesEndRef = useRef(null);
   const typingTimeoutRef = useRef(null);
@@ -69,6 +77,22 @@ export default function ChatWindow({ group, messages = [], typingUsers = [], sen
   useEffect(() => {
     scrollToBottom();
   }, [messages]);
+
+  // Initialize reported message ids from server-provided flag
+  useEffect(() => {
+    const ids = new Set();
+    messages.forEach((m) => {
+      if (m.reportedByCurrentUser) ids.add(String(m.id));
+    });
+    setReportedMessageIds(ids);
+  }, [messages]);
+
+  // Clear toast after a short time
+  useEffect(() => {
+    if (!toastMessage) return;
+    const t = setTimeout(() => setToastMessage(""), 3000);
+    return () => clearTimeout(t);
+  }, [toastMessage]);
 
   // Scroll to bottom function
   const scrollToBottom = () => {
@@ -249,6 +273,53 @@ export default function ChatWindow({ group, messages = [], typingUsers = [], sen
   const withTimes = messages.map((m) => ({ ...m, time: formatTime(m.timestamp) }));
   const displayMessages = groupMessagesByDate(withTimes);
 
+  // Open report confirmation modal for a message
+  const openReportModal = (msg) => {
+    setReportTarget(msg);
+    setShowReportModal(true);
+  };
+
+  // Confirm and send report to backend
+  async function handleConfirmReport() {
+    if (!reportTarget) return;
+    const messageId = reportTarget.id || reportTarget._id || reportTarget._id;
+    try {
+      setReportLoadingId(messageId);
+      const token = localStorage.getItem("authToken");
+      if (!token) {
+        setToastMessage("You must be logged in to report messages.");
+        setReportLoadingId(null);
+        return;
+      }
+      const backendUrl = import.meta.env.VITE_BACKEND_BASE_URL || "http://localhost:5001";
+      const res = await fetch(`${backendUrl}/api/messages/${messageId}/report-abuse`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+      });
+      const j = await res.json();
+      if (!res.ok) {
+        setToastMessage(j.message || "Error reporting message");
+        setReportLoadingId(null);
+        return;
+      }
+      setReportedMessageIds((prev) => {
+        const s = new Set(prev);
+        s.add(String(messageId));
+        return s;
+      });
+      setToastMessage("Message reported");
+      setShowReportModal(false);
+      setReportTarget(null);
+    } catch (err) {
+      console.error("reportAbuse error", err);
+      setToastMessage("Error reporting message");
+    } finally {
+      setReportLoadingId(null);
+    }
+  }
+
+  
+
   return (
     <div className="flex flex-col h-full bg-white">
       {/* Chat Header */}
@@ -355,7 +426,7 @@ export default function ChatWindow({ group, messages = [], typingUsers = [], sen
                         msg.isOwn
                           ? "bg-blue-100 text-gray-800"
                           : "bg-white text-gray-800 shadow-sm"
-                      }`}
+                      } relative`}
                     >
                       <p className="text-sm">{msg.message}</p>
                       <p
@@ -365,6 +436,66 @@ export default function ChatWindow({ group, messages = [], typingUsers = [], sen
                       >
                         {msg.time}
                       </p>
+
+                      {/* Report / Actions menu for non-own messages */}
+                      {!msg.isOwn && userData?.userId && (
+                        <div className="absolute top-1 right-1">
+                          <div className="relative">
+                            <button
+                              className="p-1 hover:bg-gray-100 rounded"
+                              onClick={async (e) => {
+                                e.stopPropagation();
+                                // Fetch latest message info from backend to check reportedByCurrentUser
+                                try {
+                                  const backendUrl = import.meta.env.VITE_BACKEND_BASE_URL || "http://localhost:5001";
+                                  const token = localStorage.getItem("authToken");
+                                  const headers = token ? { Authorization: `Bearer ${token}` } : {};
+                                  const res = await fetch(`${backendUrl}/api/messages/${msg.id}`, { headers });
+                                  if (res.ok) {
+                                    const j = await res.json();
+                                    const remoteMsg = j.message;
+                                    if (remoteMsg?.reportedByCurrentUser) {
+                                      setReportedMessageIds((prev) => {
+                                        const s = new Set(prev);
+                                        s.add(String(msg.id));
+                                        return s;
+                                      });
+                                    }
+                                  }
+                                } catch (err) {
+                                  console.error('Error fetching message status', err);
+                                }
+                                setActiveMenuId((prev) => (prev === msg.id ? null : msg.id));
+                              }}
+                              title="Message actions"
+                            >
+                              <svg className="w-4 h-4 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6v.01M12 12v.01M12 18v.01" />
+                              </svg>
+                            </button>
+
+                            {activeMenuId === msg.id && (
+                              <div className="absolute right-0 mt-2 w-44 bg-white shadow-lg rounded border overflow-hidden z-20">
+                                {reportedMessageIds.has(String(msg.id)) ? (
+                                  <div className="px-3 py-2 text-sm text-gray-500">Reported</div>
+                                ) : (
+                                  <button
+                                    className="w-full text-left px-3 py-2 hover:bg-gray-50 text-sm text-red-600"
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      setActiveMenuId(null);
+                                      openReportModal(msg);
+                                    }}
+                                    disabled={reportLoadingId === msg.id}
+                                  >
+                                    {reportLoadingId === msg.id ? "Reporting..." : "Report Message"}
+                                  </button>
+                                )}
+                              </div>
+                            )}
+                          </div>
+                        </div>
+                      )}
                     </div>
                   </div>
                 </div>
@@ -374,6 +505,44 @@ export default function ChatWindow({ group, messages = [], typingUsers = [], sen
         )}
         <div ref={messagesEndRef} />
       </div>
+
+      {/* Report Confirmation Modal */}
+      <AppModal
+        isOpen={showReportModal}
+        onClose={() => {
+          if (!reportLoadingId) {
+            setShowReportModal(false);
+            setReportTarget(null);
+          }
+        }}
+        title="Report Message"
+        widthClass="max-w-md"
+      >
+        <p className="text-sm text-gray-600 mb-4">Are you sure you want to report this message? This action will notify moderators for review.</p>
+        <div className="flex justify-end gap-2">
+          <button
+            onClick={() => { setShowReportModal(false); setReportTarget(null); }}
+            className="px-4 py-2 bg-gray-200 rounded"
+            disabled={!!reportLoadingId}
+          >
+            Cancel
+          </button>
+          <button
+            onClick={handleConfirmReport}
+            className="px-4 py-2 bg-red-600 text-white rounded"
+            disabled={!!reportLoadingId}
+          >
+            {reportLoadingId ? "Reporting..." : "Report"}
+          </button>
+        </div>
+      </AppModal>
+
+      {/* Toast */}
+      {toastMessage && (
+        <div className="fixed bottom-6 right-6 z-50">
+          <div className="bg-gray-900 text-white px-4 py-2 rounded shadow">{toastMessage}</div>
+        </div>
+      )}
 
       {/* Chat Input */}
       <div className="p-4 bg-gray-100 border-t border-gray-200 relative">

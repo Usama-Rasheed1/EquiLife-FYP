@@ -6,6 +6,7 @@ const initialState = {
   dob: null,
   age: null,
   profilePhoto: null,
+  role: null,
   heightCm: null,
   gender: null,
 };
@@ -21,6 +22,7 @@ const userSlice = createSlice({
       if (payload.dob !== undefined) state.dob = payload.dob;
       if (payload.age !== undefined) state.age = payload.age;
       if (payload.profilePhoto !== undefined) state.profilePhoto = payload.profilePhoto;
+      if (payload.role !== undefined) state.role = payload.role;
       if (payload.heightCm !== undefined) state.heightCm = payload.heightCm;
       if (payload.gender !== undefined) state.gender = payload.gender;
     },

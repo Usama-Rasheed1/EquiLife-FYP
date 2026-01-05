@@ -1,39 +1,43 @@
 import React, { useState, useEffect } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
+import { useSelector } from 'react-redux';
 import Sidebar from "./Sidebar";
 import Navbar from "./Navbar";
 
-const Layout = ({ children, userName = "Tayyab ", userRole = "admin" }) => {
+const Layout = ({ children, userName = "Tayyab ", userRole: propUserRole }) => {
   const location = useLocation();
   const navigate = useNavigate();
+  const storeUser = useSelector((s) => s.user || {});
+  const userRole = propUserRole || storeUser.role || 'user';
   const [activePage, setActivePage] = useState("dashboard");
   const [sidebarOpen, setSidebarOpen] = useState(false);
 
   // Update active page based on current route
   useEffect(() => {
     const path = location.pathname;
-    if (path.includes("/dashboard/users")) {
+    if (path.includes("/admin/users")) {
       setActivePage("users");
-    } else if (path.includes("/dashboard/assessments")) {
-      setActivePage("assessments");
-    } else if (path.includes("/dashboard/high-risk-monitoring")) {
+    } else if ( path.includes("/admin/community-abuse")) {
+      setActivePage("community-abuse");
+    } else if (path.includes("/admin/high-risk-monitoring")) {
       setActivePage("high-risk-monitoring");
-    } else if (path.includes("/dashboard/content-management")) {
+    } else if (path.includes("/admin/content-management")) {
       setActivePage("content-management");
-    } else if (path.includes("/dashboard/content-admin-management")) {
+    } else if (path.includes("/admin/content-admin-management")) {
       setActivePage("content-admin-management");
-    } else if (path.includes("/dashboard")) {
-      setActivePage("dashboard");
-    }
+    } 
   }, [location.pathname]);
 
   const handlePageChange = (pageId) => {
     setActivePage(pageId);
     // Navigate to the corresponding route
     if (pageId === "dashboard") {
-      navigate("/dashboard");
+      // route depends on role
+      if (userRole && (userRole === 'admin' || userRole === 'superadmin')) navigate(`/admin/dashboard`);
+      else navigate("/dashboard");
     } else {
-      navigate(`/dashboard/${pageId}`);
+      if (userRole && (userRole === 'admin' || userRole === 'superadmin')) navigate(`/admin/${pageId}`);
+      else navigate(`/dashboard/${pageId}`);
     }
     // Close sidebar on mobile after navigation
     setSidebarOpen(false);
@@ -73,7 +77,7 @@ const Layout = ({ children, userName = "Tayyab ", userRole = "admin" }) => {
       {/* Right Side: Main Section */}
       <div className="flex-1 flex flex-col w-full lg:w-auto">
         {/* Navbar */}
-        <Navbar userName={userName} activePage={activePage} onToggleSidebar={toggleSidebar} />
+        <Navbar userName={userName} activePage={activePage} onToggleSidebar={toggleSidebar} userRole={userRole} />
 
         {/* Main content */}
         <main className="flex-1 bg-gray-50 overflow-y-auto">
