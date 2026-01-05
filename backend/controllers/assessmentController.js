@@ -440,12 +440,16 @@ exports.getGraphTrends = async (req, res) => {
     }
 
     const maxWeekNumber = maxWeekRecord.weekNumber;
-    const minWeekNumber = Math.max(1, maxWeekNumber - 4); // Last 5 weeks (inclusive)
 
-    // Fetch all weeks in the range
+    // Display a fixed 5-week window. If the user's maxWeekNumber < 5,
+    // still display weeks 1..5 so earlier weeks appear as explicit nulls.
+    const displayMaxWeek = Math.max(maxWeekNumber, 5);
+    const displayMinWeek = Math.max(1, displayMaxWeek - 4); // ensures a 5-week window
+
+    // Fetch any summaries that exist within the display window
     const summaries = await WeeklyAssessmentSummary.find({
       userId,
-      weekNumber: { $gte: minWeekNumber, $lte: maxWeekNumber },
+      weekNumber: { $gte: displayMinWeek, $lte: displayMaxWeek },
     })
       .sort({ weekNumber: 1 })
       .lean();
@@ -462,16 +466,17 @@ exports.getGraphTrends = async (req, res) => {
     const depressionScores = [];
     const wellbeingScores = [];
 
-    for (let weekNum = minWeekNumber; weekNum <= maxWeekNumber; weekNum++) {
+    for (let weekNum = displayMinWeek; weekNum <= displayMaxWeek; weekNum++) {
       weekLabels.push(`Week ${weekNum}`);
 
       // Get summary for this week (or use nulls if week was skipped)
       const summary = summariesMap[weekNum];
 
       if (summary) {
-        anxietyScores.push(summary.gadScore || null);
-        depressionScores.push(summary.phqScore || null);
-        wellbeingScores.push(summary.ghqScore || null);
+        // Preserve explicit numeric zeros; only use null when value is null/undefined
+        anxietyScores.push(typeof summary.gadScore === "number" ? summary.gadScore : null);
+        depressionScores.push(typeof summary.phqScore === "number" ? summary.phqScore : null);
+        wellbeingScores.push(typeof summary.ghqScore === "number" ? summary.ghqScore : null);
       } else {
         // Skipped week - all nulls
         anxietyScores.push(null);

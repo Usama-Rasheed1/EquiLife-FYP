@@ -140,6 +140,46 @@ const Assessment = () => {
         const { weeks, anxiety, depression, wellbeing } = response.graphData;
         
         // Transform into trendData format for compatibility with existing graphs
+        // Helper: compute connector series that fills only null slots to allow
+        // a dotted grey line across skipped weeks while keeping the main line broken.
+        const computeConnector = (arr) => {
+          const n = arr.length;
+          const out = new Array(n).fill(null);
+
+          // Find indices of non-null values
+          const known = [];
+          for (let i = 0; i < n; i++) if (arr[i] !== null && arr[i] !== undefined) known.push(i);
+
+          if (known.length === 0) return out; // nothing to connect
+
+          for (let k = 0; k < known.length - 1; k++) {
+            const i = known[k];
+            const j = known[k + 1];
+            const vi = arr[i];
+            const vj = arr[j];
+            // Fill values BETWEEN i and j (exclusive) with linear interpolation
+            for (let t = i + 1; t < j; t++) {
+              // only fill if arr[t] is null (skipped)
+              if (arr[t] === null || arr[t] === undefined) {
+                const ratio = (t - i) / (j - i);
+                out[t] = vi + (vj - vi) * ratio;
+              }
+            }
+          }
+
+          // Edge cases: before first known and after last known — copy nearest known value
+          const first = known[0];
+          for (let t = 0; t < first; t++) if (arr[t] === null || arr[t] === undefined) out[t] = arr[first];
+          const last = known[known.length - 1];
+          for (let t = last + 1; t < n; t++) if (arr[t] === null || arr[t] === undefined) out[t] = arr[last];
+
+          return out;
+        };
+
+        const anxietyConnector = computeConnector(anxiety);
+        const depressionConnector = computeConnector(depression);
+        const wellbeingConnector = computeConnector(wellbeing);
+
         const formattedData = weeks.map((week, index) => {
           // Extract week number from "Week X" format
           const weekNum = parseInt(week.split(' ')[1]);
@@ -148,10 +188,10 @@ const Assessment = () => {
             anxiety: anxiety[index],
             depression: depression[index],
             wellbeing: wellbeing[index],
-            // For missing data visualization
-            anxietyMissing: anxiety[index] === null ? null : undefined,
-            depressionMissing: depression[index] === null ? null : undefined,
-            wellbeingMissing: wellbeing[index] === null ? null : undefined,
+            // connector values are numeric only where the original value was missing
+            anxietyConnector: anxietyConnector[index] === undefined ? null : anxietyConnector[index],
+            depressionConnector: depressionConnector[index] === undefined ? null : depressionConnector[index],
+            wellbeingConnector: wellbeingConnector[index] === undefined ? null : wellbeingConnector[index],
           };
         });
         
@@ -313,15 +353,15 @@ const Assessment = () => {
                           return null;
                         }}
                       />
-                      {/* Missing data line (grey dotted) */}
+                      {/* Connector dotted gray line across skipped weeks */}
                       <Line
                         type="monotone"
-                        dataKey="anxietyMissing"
+                        dataKey="anxietyConnector"
                         stroke="#9ca3af"
                         strokeWidth={2}
                         strokeDasharray="3 3"
-                        dot={{ r: 3, fill: "transparent", stroke: "#9ca3af", strokeWidth: 2 }}
-                        connectNulls={false}
+                        dot={false}
+                        connectNulls={true}
                       />
                       {/* Data line (soft blue, smoothed) */}
                       <Line
@@ -363,15 +403,15 @@ const Assessment = () => {
                           return null;
                         }}
                       />
-                      {/* Missing data line (grey dotted) */}
+                      {/* Connector dotted gray line across skipped weeks */}
                       <Line
                         type="monotone"
-                        dataKey="depressionMissing"
+                        dataKey="depressionConnector"
                         stroke="#9ca3af"
                         strokeWidth={2}
                         strokeDasharray="3 3"
-                        dot={{ r: 3, fill: "transparent", stroke: "#9ca3af", strokeWidth: 2 }}
-                        connectNulls={false}
+                        dot={false}
+                        connectNulls={true}
                       />
                       {/* Data line (soft purple, smoothed) */}
                       <Line
@@ -413,15 +453,15 @@ const Assessment = () => {
                           return null;
                         }}
                       />
-                      {/* Missing data line (grey dotted) */}
+                      {/* Connector dotted gray line across skipped weeks */}
                       <Line
                         type="monotone"
-                        dataKey="wellbeingMissing"
+                        dataKey="wellbeingConnector"
                         stroke="#9ca3af"
                         strokeWidth={2}
                         strokeDasharray="3 3"
-                        dot={{ r: 3, fill: "transparent", stroke: "#9ca3af", strokeWidth: 2 }}
-                        connectNulls={false}
+                        dot={false}
+                        connectNulls={true}
                       />
                       {/* Data line (soft green/teal, smoothed) */}
                       <Line

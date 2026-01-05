@@ -15,6 +15,12 @@ const weeklyAssessmentSummarySchema = new mongoose.Schema(
       required: true,
       min: 1,
     },
+    // Canonical start date for the week (UTC midnight). Some indexes rely on this field.
+    weekStartDate: {
+      type: Date,
+      default: null,
+      index: true,
+    },
     // Single assessment score per week (null if not taken that week)
     gadScore: {
       type: Number,

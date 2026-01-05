@@ -6,7 +6,6 @@ const ActivitySummary = () => {
   const [data, setData] = useState([
     { name: "Assessment Consistency", value: 0, color: "#10b981" },
     { name: "Workout Completion Rate", value: 0, color: "#3b82f6" },
-    { name: "Calories Burned", value: 0, color: "#ef4444" },
     { name: "Meal Logging Accuracy", value: 0, color: "#6b7280" },
   ]);
   const [loading, setLoading] = useState(true);
@@ -18,7 +17,6 @@ const ActivitySummary = () => {
         setData([
           { name: "Assessment Consistency", value: summary.assessmentConsistency, color: "#10b981" },
           { name: "Workout Completion Rate", value: summary.workoutCompletion, color: "#3b82f6" },
-          { name: "Calories Burned", value: summary.caloriesBurned, color: "#ef4444" },
           { name: "Meal Logging Accuracy", value: summary.mealLoggingAccuracy, color: "#6b7280" },
         ]);
       } catch (error) {
