@@ -18,6 +18,7 @@ import Goals from './pages/Goals';
 import GoalProgress from './pages/GoalProgress';
 import GoalRedirect from './components/GoalRedirect';
 
+import AdminDashboard from './pages/AdminDashboard';
 
 
 function App() {
@@ -39,6 +40,8 @@ function App() {
         <Route path="/dashboard/community" element={<Community />} />
         <Route path="/dashboard/gamification" element={<GamificationSimplified />} />
         <Route path="/dashboard/goals" element={<Goals />} />
+        <Route path="/admin/dashboard" element={<AdminDashboard />} />
+
         {/* Redirect any goal detail page back to goals list */}
         <Route path="/dashboard/goals/:goalId" element={<GoalRedirect />} />
         <Route path="/goals/:goalId" element={<GoalRedirect />} />

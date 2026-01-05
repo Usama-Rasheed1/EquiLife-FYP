@@ -26,7 +26,12 @@ const Signin = () => {
         try { localStorage.setItem('authToken', data.accessToken); } catch (err) { console.error(err); }
       }
 
-      navigate('/dashboard');
+      // Redirect based on role
+      if (data.role === 'admin' || data.role === 'super admin') {
+        navigate('/admin/dashboard');
+      } else {
+        navigate('/dashboard');
+      }
     } catch (err) {
       const msg = err?.response?.data?.message || 'Login failed';
       const status = err?.response?.status;

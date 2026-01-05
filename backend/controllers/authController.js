@@ -47,7 +47,7 @@ exports.login = async (req, res) => {
     notificationService.createInitialNotifications(user._id)
       .then(() => console.debug('[auth] initial notifications triggered for', String(user._id)))
       .catch(err => console.error('Notification init error:', err));
-    return res.json({ ok: true, accessToken });
+    return res.json({ ok: true, accessToken, role: user.role });
   } catch (err) {
     return res.status(500).json({ message: "Error logging in" });
   }

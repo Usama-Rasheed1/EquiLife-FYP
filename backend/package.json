@@ -7,6 +7,7 @@
     "start": "node server.js",
     "seed:predefined": "node scripts/seedPredefined.js",
     "seed:assessments": "node scripts/seedAssessments.js",
+    "seed:admin": "node scripts/seedAdminUsers.js",
     "seed:all": "node scripts/seedAssessments.js && node scripts/seedWeeklyAssessments.js && node scripts/seedAssessmentResults.js"
   },
   "keywords": [],
