@@ -97,7 +97,7 @@ const LEADERBOARD_DATA = [
   { id: 3, name: "Muhammad Rehman", xp: 249, avatar: "/user.jpg" },
   { id: 4, name: "UbaidUllah", xp: 235, avatar: "/user.jpg" },
   { id: 5, name: "Tauqir Hayat", xp: 220, avatar: "/user.jpg" },
-  { id: 6, name: "Fatima UMT", xp: 198, avatar: "/user.jpg" },
+  { id: 6, name: "Fatima", xp: 198, avatar: "/user.jpg" },
   { id: 7, name: "Azeem Sheera", xp: 185, avatar: "/user.jpg" },
   { id: 8, name: "Ali Ahmed", xp: 172, avatar: "/user.jpg" },
   { id: 9, name: "Ukasha Sagar", xp: 160, avatar: "/user.jpg" },

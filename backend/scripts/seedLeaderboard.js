@@ -15,7 +15,7 @@ const seedLeaderboard = async () => {
       { fullName: 'Usama Rasheed', email: 'usama@example.com', totalPoints: 249 },
       { fullName: 'UbaidUllah', email: 'ubaid@example.com', totalPoints: 235 },
       { fullName: 'Tauqir Hayat', email: 'tauqir@example.com', totalPoints: 220 },
-      { fullName: 'Fatima UMT', email: 'fatima@example.com', totalPoints: 198 },
+      { fullName: 'Fatima', email: 'fatima@example.com', totalPoints: 198 },
       { fullName: 'Azeem Sheera', email: 'azeem@example.com', totalPoints: 185 },
       { fullName: 'Ali Ahmed', email: 'ali@example.com', totalPoints: 172 },
       { fullName: 'Ukasha Sagar', email: 'ukasha@example.com', totalPoints: 160 },

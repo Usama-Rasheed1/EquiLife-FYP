@@ -3,7 +3,7 @@ import { useLocation, useNavigate } from "react-router-dom";
 import Sidebar from "./Sidebar";
 import Navbar from "./Navbar";
 
-const Layout = ({ children, userName = "Tayyab " }) => {
+const Layout = ({ children, userName = "Tayyab ", userRole = "admin" }) => {
   const location = useLocation();
   const navigate = useNavigate();
   const [activePage, setActivePage] = useState("dashboard");
@@ -12,20 +12,16 @@ const Layout = ({ children, userName = "Tayyab " }) => {
   // Update active page based on current route
   useEffect(() => {
     const path = location.pathname;
-    if (path.includes("/dashboard/assessment")) {
-      setActivePage("assessment");
-    } else if (path.includes("/fitness") || path.includes("/dashboard/fitness")) {
-      setActivePage("fitness");
-    } else if (path.includes("/dashboard/nutrition")) {
-      setActivePage("nutrition");
-    } else if (path.includes("/dashboard/community")) {
-      setActivePage("community");
-    } else if (path.includes("/dashboard/gamification")) {
-      // Keep Dashboard active for gamification sub-pages
-      setActivePage("dashboard");
-    } else if (path.includes("/dashboard/goals")) {
-      // Keep Dashboard active for goals sub-pages
-      setActivePage("dashboard");
+    if (path.includes("/dashboard/users")) {
+      setActivePage("users");
+    } else if (path.includes("/dashboard/assessments")) {
+      setActivePage("assessments");
+    } else if (path.includes("/dashboard/high-risk-monitoring")) {
+      setActivePage("high-risk-monitoring");
+    } else if (path.includes("/dashboard/content-management")) {
+      setActivePage("content-management");
+    } else if (path.includes("/dashboard/content-admin-management")) {
+      setActivePage("content-admin-management");
     } else if (path.includes("/dashboard")) {
       setActivePage("dashboard");
     }
@@ -59,7 +55,7 @@ const Layout = ({ children, userName = "Tayyab " }) => {
 
       {/* Sidebar - Hidden on mobile, shown on desktop */}
       <div className="hidden lg:block">
-        <Sidebar activePage={activePage} onPageChange={handlePageChange} />
+        <Sidebar activePage={activePage} onPageChange={handlePageChange} userRole={userRole} />
       </div>
 
       {/* Mobile Sidebar */}
@@ -70,6 +66,7 @@ const Layout = ({ children, userName = "Tayyab " }) => {
           activePage={activePage} 
           onPageChange={handlePageChange} 
           onClose={() => setSidebarOpen(false)}
+          userRole={userRole}
         />
       </div>
 

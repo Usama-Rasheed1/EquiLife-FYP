@@ -47,7 +47,9 @@ const userSchema = new mongoose.Schema({
   // Profile photo stored as base64 string
   profilePhoto: { type: String },
   // Email verification status (required for OTP flow)
-  isVerified: { type: Boolean, default: false }
+  isVerified: { type: Boolean, default: false },
+  // User role for access control
+  role: { type: String, enum: ["user", "admin", "super admin"], default: "user" }
 }, { timestamps: true });
 
 // hash password automatically when created/changed

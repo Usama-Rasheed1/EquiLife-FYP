@@ -1,7 +1,7 @@
 import React from "react";
 
-const Sidebar = ({ activePage, onPageChange, onClose }) => {
-  const navigationItems = [
+const Sidebar = ({ activePage, onPageChange, onClose, userRole = "admin"}) => {
+  const adminNavigationItems = [
     {
       id: "dashboard",
       name: "Dashboard",
@@ -9,30 +9,65 @@ const Sidebar = ({ activePage, onPageChange, onClose }) => {
       alt: "Dashboard Icon"
     },
     {
-      id: "assessment",
-      name: "Assessment",
+      id: "users",
+      name: "Users",
       icon: "/mentalIcon.png",
-      alt: "Assessment Icon"
+      alt: "Users Icon"
     },
     {
-      id: "fitness",
-      name: "Fitness",
+      id: "assessments",
+      name: "Assessments",
       icon: "/physicalIcon.png",
-      alt: "Fitness Icon"
+      alt: "Assessments Icon"
     },
     {
-      id: "nutrition",
-      name: "Nutrition",
+      id: "high-risk-monitoring",
+      name: "High-Risk Monitoring",
       icon: "/nutritionIcon.png",
-      alt: "Nutrition Icon"
+      alt: "High-Risk Monitoring Icon"
     },
     {
-      id: "community",
-      name: "Community",
+      id: "content-management",
+      name: "Content Management",
       icon: "/commIcon.png",
-      alt: "Community Icon"
+      alt: "Content Management Icon"
     }
   ];
+
+  const superAdminNavigationItems = [
+    {
+      id: "dashboard",
+      name: "Dashboard",
+      icon: "/dashIcon.png",
+      alt: "Dashboard Icon"
+    },
+    {
+      id: "users",
+      name: "Users",
+      icon: "/mentalIcon.png",
+      alt: "Users Icon"
+    },
+    {
+      id: "assessments",
+      name: "Assessments",
+      icon: "/physicalIcon.png",
+      alt: "Assessments Icon"
+    },
+    {
+      id: "high-risk-monitoring",
+      name: "High-Risk Monitoring",
+      icon: "/nutritionIcon.png",
+      alt: "High-Risk Monitoring Icon"
+    },
+    {
+      id: "content-admin-management",
+      name: "Content & Admin",
+      icon: "/commIcon.png",
+      alt: "Content & Admin Management Icon"
+    }
+  ];
+
+  const navigationItems = userRole === "superadmin" ? superAdminNavigationItems : adminNavigationItems;
 
   return (
     <aside className="w-60 bg-white border-r border-white shadow-md flex flex-col h-full">

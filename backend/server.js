@@ -56,7 +56,7 @@ mongoose.connect(process.env.MONGO_URI)
       }
     });
 
-    // Schedule bi-weekly job: every Monday at 04:00, but only run when ISO week parity matches
+    // Schedule bi-weekly job: every Monday
     cron.schedule('0 4 * * 1', async () => {
       try {
         const now = new Date();

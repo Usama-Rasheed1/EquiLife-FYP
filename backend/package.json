@@ -7,6 +7,7 @@
     "start": "node server.js",
     "seed:predefined": "node scripts/seedPredefined.js",
     "seed:assessments": "node scripts/seedAssessments.js",
+    "seed:admin": "node scripts/seedAdminUsers.js",
     "seed:all": "node scripts/seedAssessments.js && node scripts/seedWeeklyAssessments.js && node scripts/seedAssessmentResults.js"
   },
   "keywords": [],
@@ -23,7 +24,7 @@
     "jsonwebtoken": "^9.0.2",
     "mongoose": "^8.15.2",
     "node-cron": "^3.0.2",
-    "nodemailer": "^6.9.7",
+    "nodemailer": "^7.0.12",
     "socket.io": "^4.8.3",
     "socket.io-client": "^4.8.3"
   }

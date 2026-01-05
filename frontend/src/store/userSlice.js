@@ -36,8 +36,11 @@ const userSlice = createSlice({
     updateProfilePhoto(state, action) {
       state.profilePhoto = action.payload;
     },
+    clearUserData(state) {
+      return initialState;
+    },
   },
 });
 
-export const { setUserData, updateWeight, updateDob, updateAge, updateProfilePhoto } = userSlice.actions;
+export const { setUserData, updateWeight, updateDob, updateAge, updateProfilePhoto, clearUserData } = userSlice.actions;
 export default userSlice.reducer;
