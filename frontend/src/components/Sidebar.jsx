@@ -2,6 +2,7 @@ import React from "react";
 
 const Sidebar = ({ activePage, onPageChange, onClose, userRole = "admin"}) => {
   const userNavigationItems = [
+    {id: 'dashboard', name: 'Dashboard', icon: '/dashIcon.png', alt: 'Dashboard'},
     { id: 'assessment', name: 'Assessment', icon: '/mentalIcon.png', alt: 'Assessment' },
     { id: 'fitness', name: 'Fitness', icon: '/physicalIcon.png', alt: 'Fitness' },
     { id: 'nutrition', name: 'Nutrition', icon: '/nutritionIcon.png', alt: 'Nutrition' },
