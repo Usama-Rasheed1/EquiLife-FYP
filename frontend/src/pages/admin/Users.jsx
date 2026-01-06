@@ -120,7 +120,7 @@ const Users = () => {
   }, [toast]);
 
   return (
-    <Layout userRole="superadmin">
+    <Layout>
       <div className="p-8">
         <div className="max-w-6xl mx-auto">
           {/* Header */}

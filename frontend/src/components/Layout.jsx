@@ -33,10 +33,10 @@ const Layout = ({ children, userName = "Tayyab ", userRole: propUserRole }) => {
     // Navigate to the corresponding route
     if (pageId === "dashboard") {
       // route depends on role
-      if (userRole && (userRole === 'admin' || userRole === 'superadmin')) navigate(`/admin/dashboard`);
+      if (userRole && (userRole === 'admin' || userRole === 'superadmin' || userRole === 'super admin')) navigate(`/admin/dashboard`);
       else navigate("/dashboard");
     } else {
-      if (userRole && (userRole === 'admin' || userRole === 'superadmin')) navigate(`/admin/${pageId}`);
+      if (userRole && (userRole === 'admin' || userRole === 'superadmin' || userRole === 'super admin')) navigate(`/admin/${pageId}`);
       else navigate(`/dashboard/${pageId}`);
     }
     // Close sidebar on mobile after navigation

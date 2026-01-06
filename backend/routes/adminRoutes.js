@@ -1,6 +1,7 @@
 const express = require('express');
 const router = express.Router();
 const verifyToken = require('../middleware/authMiddleware');
+const { requireSuperAdmin, requireAdmin } = require('../middleware/roleMiddleware');
 const Message = require('../models/Message');
 const User = require('../models/User');
 
@@ -38,14 +39,95 @@ router.delete('/community/message/:messageId', verifyToken, async (req, res) => 
   }
 });
 
-// Get all users (role: user only)
-router.get('/users', verifyToken, async (req, res) => {
+// Get all users (role: user only) - for both admin and superadmin
+router.get('/users', verifyToken, requireAdmin, async (req, res) => {
   try {
     const users = await User.find({ role: 'user' }).select('-password').sort({ createdAt: -1 });
     return res.json(users);
   } catch (err) {
     console.error('get users error', err);
     return res.status(500).json({ ok: false, message: 'Error fetching users' });
+  }
+});
+
+// Get all admin users (super admin only)
+router.get('/admin-users', verifyToken, requireSuperAdmin, async (req, res) => {
+  try {
+    const admins = await User.find({ role: 'admin' }).select('-password').sort({ createdAt: -1 });
+    return res.json(admins);
+  } catch (err) {
+    console.error('get admin users error', err);
+    return res.status(500).json({ ok: false, message: 'Error fetching admin users' });
+  }
+});
+
+// Create a new admin user (super admin only)
+router.post('/admin-user', verifyToken, requireSuperAdmin, async (req, res) => {
+  try {
+    const { fullName, email, password } = req.body;
+
+    // Validate required fields
+    if (!fullName || !email || !password) {
+      return res.status(400).json({ ok: false, message: 'Full name, email, and password are required' });
+    }
+
+    if (password.length < 5) {
+      return res.status(400).json({ ok: false, message: 'Password must be at least 5 characters' });
+    }
+
+    // Check if email already exists
+    const existingUser = await User.findOne({ email });
+    if (existingUser) {
+      return res.status(400).json({ ok: false, message: 'Email already exists' });
+    }
+
+    // Create new admin user
+    const admin = await User.create({
+      fullName,
+      email,
+      password,
+      role: 'admin',
+      isVerified: true
+    });
+
+    // Remove password from response
+    const adminResponse = admin.toObject();
+    delete adminResponse.password;
+
+    return res.status(201).json({ ok: true, message: 'Admin user created successfully', admin: adminResponse });
+  } catch (err) {
+    console.error('create admin user error', err);
+    return res.status(500).json({ ok: false, message: 'Error creating admin user' });
+  }
+});
+
+// Delete an admin user (super admin only)
+router.delete('/admin-user/:userId', verifyToken, requireSuperAdmin, async (req, res) => {
+  try {
+    const { userId } = req.params;
+    if (!userId || !userId.match(/^[0-9a-fA-F]{24}$/)) {
+      return res.status(400).json({ ok: false, message: 'Invalid userId' });
+    }
+
+    // Check if trying to delete a super admin
+    const user = await User.findById(userId);
+    if (!user) {
+      return res.status(404).json({ ok: false, message: 'Admin user not found' });
+    }
+
+    if (user.role === 'super admin') {
+      return res.status(403).json({ ok: false, message: 'Cannot delete super admin users' });
+    }
+
+    if (user.role !== 'admin') {
+      return res.status(400).json({ ok: false, message: 'User is not an admin' });
+    }
+
+    await User.findByIdAndDelete(userId);
+    return res.json({ ok: true, message: 'Admin user deleted successfully' });
+  } catch (err) {
+    console.error('delete admin user error', err);
+    return res.status(500).json({ ok: false, message: 'Error deleting admin user' });
   }
 });
 

@@ -21,18 +21,6 @@ const Sidebar = ({ activePage, onPageChange, onClose, userRole = "admin"}) => {
       name: "Community Management",
       icon: "/commIcon.png",
       alt: "Community Management Icon"
-    },
-    {
-      id: "high-risk-monitoring",
-      name: "High-Risk Monitoring",
-      icon: "/nutritionIcon.png",
-      alt: "High-Risk Monitoring Icon"
-    },
-    {
-      id: "content-management",
-      name: "Content Management",
-      icon: "/commIcon.png",
-      alt: "Content Management Icon"
     }
   ];
 
@@ -66,7 +54,7 @@ const Sidebar = ({ activePage, onPageChange, onClose, userRole = "admin"}) => {
   // Choose navigation based on role: `user` gets the original app nav, admins get admin navs
   const navigationItems = userRole === "user"
     ? userNavigationItems
-    : (userRole === "superadmin" ? superAdminNavigationItems : adminNavigationItems);
+    : (userRole === "superadmin" || userRole === "super admin" ? superAdminNavigationItems : adminNavigationItems);
 
   return (
     <aside className="w-60 bg-white border-r border-white shadow-md flex flex-col h-full">

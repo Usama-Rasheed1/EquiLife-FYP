@@ -49,7 +49,7 @@ const userSchema = new mongoose.Schema({
   // Email verification status (required for OTP flow)
   isVerified: { type: Boolean, default: false },
   // User role for access control
-  role: { type: String, enum: ["user", "admin", "super admin"], default: "user" }
+  role: { type: String, enum: ["user", "admin", "super admin", "superadmin"], default: "user" }
 }, { timestamps: true });
 
 // hash password automatically when created/changed

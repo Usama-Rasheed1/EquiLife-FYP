@@ -31,13 +31,13 @@ const otpVerifyLimiter = rateLimit({
 
 /**
  * Rate limiter for login attempts
- * Max 5 login attempts per 15 minutes per IP
+ * Max 20 login attempts per 15 minutes per IP (increased for development)
  */
 const loginLimiter = rateLimit({
   windowMs: 15 * 60 * 1000, // 15 minutes
-  max: 5, // Max 5 attempts
+  max: process.env.NODE_ENV === "production" ? 5 : 20, // 5 in production, 20 in development
   message:
-    "Too many login attempts. Please try again later (max 5 per 15 minutes).",
+    "Too many login attempts. Please try again later.",
   standardHeaders: true,
   legacyHeaders: false,
   skip: (req) => process.env.NODE_ENV === "test",

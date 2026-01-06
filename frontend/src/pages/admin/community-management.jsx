@@ -4,7 +4,7 @@ import CommunityAbuse from './CommunityAbuse';
 
 const communityManagement = () => {
   return (
-    <Layout userRole="superadmin">
+    <Layout>
       <CommunityAbuse />
     </Layout>
   );
