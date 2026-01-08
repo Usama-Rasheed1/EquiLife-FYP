@@ -80,7 +80,7 @@ try {
           "Content-Type": "application/json",
           "HTTP-Referer": "https://equilife.app"
         },
-        timeout: 10000, 
+        timeout: 100000, 
       }
     );
 

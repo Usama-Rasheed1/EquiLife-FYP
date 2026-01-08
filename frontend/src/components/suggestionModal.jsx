@@ -30,7 +30,15 @@ const SuggestionModal = ({ isOpen, onClose, onTestAgain, suggestion, isLoading, 
 
         {/* Success State */}
         {!isLoading && !error && suggestion && (
-          <p className="text-sm text-gray-700 leading-relaxed">{suggestion}</p>
+          <div className="space-y-4">
+            <p className="text-sm text-gray-700 leading-relaxed">{suggestion}</p>
+            <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+              <p className="text-xs font-semibold text-blue-900 mb-1">Note:</p>
+              <p className="text-xs text-blue-800">
+                This suggestion is for educational purposes. Please consult a qualified healthcare professional for personalized medical advice, diagnosis, or treatment.
+              </p>
+            </div>
+          </div>
         )}
 
         {/* Empty State */}

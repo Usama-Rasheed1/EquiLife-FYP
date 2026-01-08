@@ -10,6 +10,8 @@ const CommunityAbuse = () => {
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [deletingId, setDeletingId] = useState(null);
   const [toast, setToast] = useState("");
+  const [currentPage, setCurrentPage] = useState(1);
+  const itemsPerPage = 10;
 
   // Load reported messages
   useEffect(() => {
@@ -104,7 +106,7 @@ const CommunityAbuse = () => {
   };
 
   // Derived rows with severity from abuseCount
-  const rows = useMemo(
+  const allRows = useMemo(
     () =>
       messages.map((m) => {
         const abuseCount = m.abuseCount || 0;
@@ -123,6 +125,21 @@ const CommunityAbuse = () => {
       }),
     [messages]
   );
+
+  // Pagination logic
+  const totalPages = Math.ceil(allRows.length / itemsPerPage);
+  const rows = useMemo(() => {
+    const startIdx = (currentPage - 1) * itemsPerPage;
+    return allRows.slice(startIdx, startIdx + itemsPerPage);
+  }, [allRows, currentPage]);
+
+  const handlePreviousPage = () => {
+    if (currentPage > 1) setCurrentPage(currentPage - 1);
+  };
+
+  const handleNextPage = () => {
+    if (currentPage < totalPages) setCurrentPage(currentPage + 1);
+  };
 
   useEffect(() => {
     if (!toast) return;
@@ -150,11 +167,11 @@ const CommunityAbuse = () => {
           </div>
 
           {/* Stats */}
-          {!loading && !error && rows.length > 0 && (
+          {!loading && !error && allRows.length > 0 && (
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-6 mb-8">
-              <AdminStatCard title="Reported Messages" value={rows.length} tone="indigo" />
-              <AdminStatCard title="High Severity" value={rows.filter((r) => r.severity === 'high').length} tone="red" />
-              <AdminStatCard title="Medium Severity" value={rows.filter((r) => r.severity === 'medium').length} tone="yellow" />
+              <AdminStatCard title="Reported Messages" value={allRows.length} tone="indigo" />
+              <AdminStatCard title="High Severity" value={allRows.filter((r) => r.severity === 'high').length} tone="red" />
+              <AdminStatCard title="Medium Severity" value={allRows.filter((r) => r.severity === 'medium').length} tone="yellow" />
             </div>
           )}
 
@@ -176,7 +193,8 @@ const CommunityAbuse = () => {
             </div>
           )}
 
-          {!loading && rows.length > 0 && (
+          {!loading && allRows.length > 0 && (
+            <div>
             <div className="border border-gray-200 rounded-lg overflow-hidden">
               <table className="w-full">
                 <thead>
@@ -250,6 +268,29 @@ const CommunityAbuse = () => {
                   ))}
                 </tbody>
               </table>
+            </div>
+            {/* Pagination */}
+            <div className="flex items-center justify-between mt-4 px-4 py-3 border border-gray-200 border-t-0 rounded-b-lg bg-gray-50">
+              <div className="text-sm text-gray-600">
+                Page {currentPage} of {totalPages} (Total: {allRows.length})
+              </div>
+              <div className="flex gap-2">
+                <button
+                  onClick={handlePreviousPage}
+                  disabled={currentPage === 1}
+                  className="px-3 py-1 text-sm bg-gray-300 text-gray-700 rounded disabled:opacity-50 disabled:cursor-not-allowed hover:bg-gray-400"
+                >
+                  Previous
+                </button>
+                <button
+                  onClick={handleNextPage}
+                  disabled={currentPage === totalPages}
+                  className="px-3 py-1 text-sm bg-gray-300 text-gray-700 rounded disabled:opacity-50 disabled:cursor-not-allowed hover:bg-gray-400"
+                >
+                  Next
+                </button>
+              </div>
+            </div>
             </div>
           )}
 

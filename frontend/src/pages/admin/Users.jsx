@@ -8,10 +8,12 @@ const Users = () => {
   const [error, setError] = useState('');
   const [users, setUsers] = useState([]);
   const [actionTarget, setActionTarget] = useState(null);
-  const [actionType, setActionType] = useState(null); // 'verify' or 'delete'
+  const [actionType, setActionType] = useState(null);
   const [showActionModal, setShowActionModal] = useState(false);
   const [actioningId, setActioningId] = useState(null);
   const [toast, setToast] = useState('');
+  const [currentPage, setCurrentPage] = useState(1);
+  const itemsPerPage = 10;
 
   // Load all users
   useEffect(() => {
@@ -101,7 +103,7 @@ const Users = () => {
   };
 
   // Derived rows (filtered to exclude admins and superadmins)
-  const rows = useMemo(() => users
+  const allRows = useMemo(() => users
     .filter((u) => u.role !== 'admin' && u.role !== 'superadmin')
     .map((u) => ({
       id: u._id || u.id,
@@ -112,6 +114,20 @@ const Users = () => {
       createdAt: u.createdAt || new Date().toISOString(),
       raw: u,
     })), [users]);
+
+  const totalPages = Math.ceil(allRows.length / itemsPerPage);
+  const rows = useMemo(() => {
+    const startIdx = (currentPage - 1) * itemsPerPage;
+    return allRows.slice(startIdx, startIdx + itemsPerPage);
+  }, [allRows, currentPage]);
+
+  const handlePreviousPage = () => {
+    if (currentPage > 1) setCurrentPage(currentPage - 1);
+  };
+
+  const handleNextPage = () => {
+    if (currentPage < totalPages) setCurrentPage(currentPage + 1);
+  };
 
   useEffect(() => {
     if (!toast) return;
@@ -130,11 +146,11 @@ const Users = () => {
           </div>
 
           {/* Stats */}
-          {!loading && !error && rows.length > 0 && (
+          {!loading && !error && allRows.length > 0 && (
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-6 mb-8">
-              <AdminStatCard title="Total Users" value={rows.length} subtitle={null} tone="indigo" />
-              <AdminStatCard title="Verified" value={rows.filter(r => r.isVerified).length}  tone="green" />
-              <AdminStatCard title="Unverified" value={rows.filter(r => !r.isVerified).length} tone="yellow" />
+              <AdminStatCard title="Total Users" value={allRows.length} subtitle={null} tone="indigo" />
+              <AdminStatCard title="Verified" value={allRows.filter(r => r.isVerified).length}  tone="green" />
+              <AdminStatCard title="Unverified" value={allRows.filter(r => !r.isVerified).length} tone="yellow" />
             </div>
           )}
           
@@ -153,14 +169,15 @@ const Users = () => {
           )}
 
           {/* Empty State */}
-          {!loading && !error && rows.length === 0 && (
+          {!loading && !error && allRows.length === 0 && (
             <div className="border border-dashed border-gray-300 rounded-lg p-12 text-center">
               <p className="text-gray-500 text-sm">No users found</p>
             </div>
           )}
 
           {/* Table */}
-          {!loading && rows.length > 0 && (
+          {!loading && allRows.length > 0 && (
+            <div>
             <div className="border border-gray-200 rounded-lg overflow-hidden">
               <table className="w-full">
                 <thead>
@@ -207,6 +224,29 @@ const Users = () => {
                   ))}
                 </tbody>
               </table>
+            </div>
+            {/* Pagination */}
+            <div className="flex items-center justify-between mt-4 px-4 py-3 border border-gray-200 border-t-0 rounded-b-lg bg-gray-50">
+              <div className="text-sm text-gray-600">
+                Page {currentPage} of {totalPages} (Total: {allRows.length})
+              </div>
+              <div className="flex gap-2">
+                <button
+                  onClick={handlePreviousPage}
+                  disabled={currentPage === 1}
+                  className="px-3 py-1 text-sm bg-gray-300 text-gray-700 rounded disabled:opacity-50 disabled:cursor-not-allowed hover:bg-gray-400"
+                >
+                  Previous
+                </button>
+                <button
+                  onClick={handleNextPage}
+                  disabled={currentPage === totalPages}
+                  className="px-3 py-1 text-sm bg-gray-300 text-gray-700 rounded disabled:opacity-50 disabled:cursor-not-allowed hover:bg-gray-400"
+                >
+                  Next
+                </button>
+              </div>
+            </div>
             </div>
           )}
         </div>
