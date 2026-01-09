@@ -15,9 +15,10 @@ const Layout = ({ children, userName = "Tayyab ", userRole: propUserRole }) => {
   // Update active page based on current route
   useEffect(() => {
     const path = location.pathname;
+    // Admin routes
     if (path.includes("/admin/users")) {
       setActivePage("users");
-    } else if ( path.includes("/admin/community-abuse")) {
+    } else if (path.includes("/admin/community-abuse")) {
       setActivePage("community-abuse");
     } else if (path.includes("/admin/high-risk-monitoring")) {
       setActivePage("high-risk-monitoring");
@@ -25,7 +26,19 @@ const Layout = ({ children, userName = "Tayyab ", userRole: propUserRole }) => {
       setActivePage("content-management");
     } else if (path.includes("/admin/content-admin-management")) {
       setActivePage("content-admin-management");
-    } 
+    }
+    // User routes
+    else if (path.includes("/dashboard/assessment")) {
+      setActivePage("assessment");
+    } else if (path.includes("/dashboard/fitness")) {
+      setActivePage("fitness");
+    } else if (path.includes("/dashboard/nutrition")) {
+      setActivePage("nutrition");
+    } else if (path.includes("/dashboard/community")) {
+      setActivePage("community");
+    } else if (path === "/dashboard") {
+      setActivePage("dashboard");
+    }
   }, [location.pathname]);
 
   const handlePageChange = (pageId) => {

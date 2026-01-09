@@ -1,12 +1,14 @@
 import React, { useState, useRef, useEffect } from "react";
 import axios from "axios";
+import { useNavigate } from "react-router-dom";
 import Notifications from "./Notifications";
 import ProfileSettingsModal from "./ProfileSettingsModal";
 import { useSelector, useDispatch } from 'react-redux';
 import { setUserData, clearUserData } from '../store/userSlice';
 
-const Navbar = ({ userName, activePage = "dashboard", onToggleSidebar, userRole: propUserRole }) => {
+const Navbar = ({ userName, activePage, onToggleSidebar, userRole: propUserRole }) => {
   const dispatch = useDispatch();
+  const navigate = useNavigate();
   const storeUser = useSelector((s) => s.user || {});
   const [name, setName] = useState(userName || storeUser.fullName || '');
   const profilePhoto = storeUser.profilePhoto || "/user.jpg";
@@ -144,12 +146,15 @@ const Navbar = ({ userName, activePage = "dashboard", onToggleSidebar, userRole:
               <button
                 className="w-full text-left px-4 py-2 hover:bg-gray-100"
                 onClick={() => {
-                  try { 
-                    localStorage.removeItem('authToken');
-                    dispatch(clearUserData());
-                  } catch (e) {}
-                  // redirect to landing page
-                  window.location.href = '/';
+                  // Navigate to landing page first
+                  navigate('/');
+                  // Then clear credentials after a delay
+                  setTimeout(() => {
+                    try { 
+                      localStorage.removeItem('authToken');
+                      dispatch(clearUserData());
+                    } catch (e) {}
+                  }, 300);
                 }}
               >
                 Logout
