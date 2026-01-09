@@ -6,7 +6,7 @@ const LandingPage = () => {
   const faqItems = [
     {
       question: "Is EquiLife free to use?",
-      answer: "Yes, EquiLife offers a free tier with core features. Premium features are available through optional subscriptions.",
+      answer: "Yes, EquiLife offers a free tier with core features. Premium features will be available through optional subscriptions.",
     },
     {
       question: "How does the mental health assessment work?",
@@ -16,7 +16,7 @@ const LandingPage = () => {
     {
       question: "How accurate is the nutrition calculator?",
       answer:
-        "Our nutrition calculator uses trusted nutritional databases and AI algorithms to provide accurate macro and micronutrient estimates based on your inputs.",
+        "Our nutrition calculator uses trusted nutritional calculation algorithms to provide accurate macro and micronutrient estimates based on your inputs.",
     },
     {
       question: "Can I interact with other users?",
