@@ -31,7 +31,7 @@ const AppModal = ({ isOpen, onClose, title, children, widthClass, closeOnOutside
       <div
         className="absolute inset-0 bg-black/40 transition-opacity duration-300"
         onClick={closeOnOutsideClick ? onClose : undefined}
-        aria-hidden
+        aria-hidden="true"
       />
 
       {/* Modal */}

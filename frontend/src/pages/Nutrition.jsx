@@ -779,11 +779,15 @@ const Nutrition = () => {
                               <p className="font-medium text-sm sm:text-base">
                                 {item.name} ({item.quantity}x)
                               </p>
-                              {/* {item.isCustom && (
+                              {(item.isCustom || item.userId ||
+                                // If the meal references a foodId or name, check the loaded foodList for an isCustom flag
+                                (item.foodId && foodList.some(f => (f._id || f.id) === item.foodId && f.isCustom)) ||
+                                (item.name && foodList.some(f => f.name === item.name && f.isCustom))
+                              ) && (
                                 <span className="inline-flex items-center px-1.5 sm:px-2 py-0.5 sm:py-1 rounded-full text-xs font-medium bg-gradient-to-r from-purple-500 to-pink-500 text-white shadow-sm">
                                   Custom
                                 </span>
-                              )} */}
+                              )}
                             </div>
                           )}
                           <p className="text-xs sm:text-sm text-gray-500 mt-1">

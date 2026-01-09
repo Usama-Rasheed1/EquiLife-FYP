@@ -64,7 +64,13 @@ exports.logMeal = async (req, res) => {
       { new: true }
     ).lean();
 
-    return res.status(201).json({ dailyLog: updatedDaily, mealItem: mealItem.toObject() });
+  // Attach food metadata so frontend can easily detect custom foods
+  const mealItemObj = mealItem.toObject();
+  mealItemObj.isCustom = !!food.isCustom;
+  mealItemObj.foodName = food.name;
+  if (food.userId) mealItemObj.userId = food.userId;
+
+  return res.status(201).json({ dailyLog: updatedDaily, mealItem: mealItemObj });
   } catch (err) {
     console.error('logMeal error', err);
     return res.status(500).json({ message: 'Server error' });
@@ -86,10 +92,24 @@ exports.getDailyLog = async (req, res) => {
 
     const items = await MealItem.find({ dailyLogId: dailyLog._id }).lean();
 
+    // Enrich each meal item with food metadata (isCustom, food name) for frontend convenience
+    const foodIds = items.map(it => String(it.foodId)).filter(Boolean);
+    const foods = await Food.find({ _id: { $in: foodIds } }).lean();
+    const foodMap = {};
+    foods.forEach(f => { if (f && f._id) foodMap[String(f._id)] = f; });
+
     const grouped = { Breakfast: [], Lunch: [], Dinner: [], Snacks: [] };
     items.forEach((it) => {
+      const key = String(it.foodId);
+      const f = foodMap[key];
+      const enriched = { ...it };
+      if (f) {
+        enriched.isCustom = !!f.isCustom;
+        enriched.foodName = f.name;
+        if (f.userId) enriched.userId = f.userId;
+      }
       if (!grouped[it.mealType]) grouped[it.mealType] = [];
-      grouped[it.mealType].push(it);
+      grouped[it.mealType].push(enriched);
     });
 
     return res.json({ dailyLog, meals: grouped });
