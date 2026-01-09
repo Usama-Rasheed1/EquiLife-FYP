@@ -2,6 +2,7 @@ import React, { useState, useMemo, useEffect } from "react";
 import Layout from "../components/Layout";
 import AssessmentModal from "../components/AssessmentModal";
 import { LineChart, Line, ResponsiveContainer, Tooltip } from "recharts";
+import { TrendingUp, TrendingDown, ArrowRight } from "lucide-react";
 import assessmentService from "../services/assessmentService";
 
 const Assessment = () => {
@@ -12,6 +13,10 @@ const Assessment = () => {
   const [latestScores, setLatestScores] = useState({});
   const [completedToday, setCompletedToday] = useState([]);
   const [graphData, setGraphData] = useState(null);
+  const [hasCompletedFiveWeeks, setHasCompletedFiveWeeks] = useState(false);
+  const [predicting, setPredicting] = useState(false);
+  const [prediction, setPrediction] = useState(null);
+  const [fiveWeeksData, setFiveWeeksData] = useState(null);
 
   // Get current month and year
   const currentDate = new Date();
@@ -129,6 +134,43 @@ const Assessment = () => {
     loadGraphData();
   };
 
+  const handlePredictTrend = async () => {
+    setPredicting(true);
+    setPrediction(null); // Reset prediction before fetching
+    try {
+      if (!fiveWeeksData) {
+        setPrediction('No data available for prediction');
+        setPredicting(false);
+        return;
+      }
+
+      const response = await fetch('http://127.0.0.1:5000/predict', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(fiveWeeksData)
+      });
+
+      if (response.ok) {
+        const data = await response.json();
+        console.log('Flask response:', data); // Debug log
+        // Handle different response formats from Flask
+        const pred = (data.trend || data.prediction || data.result || data.class || data.predicted_class).toLowerCase();
+        setPrediction(pred);
+      } else {
+        const errorData = await response.text();
+        console.error('Flask error response:', errorData);
+        setPrediction('Unable to generate prediction');
+      }
+    } catch (err) {
+      console.error('Error predicting trend:', err);
+      setPrediction('Error connecting to prediction service');
+    } finally {
+      setPredicting(false);
+    }
+  };
+
   /**
    * Fetch graph data from database
    * Transforms API response into trendData format for Recharts
@@ -196,6 +238,35 @@ const Assessment = () => {
         });
         
         setGraphData(formattedData);
+
+        // Check if user has completed assessments for at least 5 weeks
+        const weeksWithData = formattedData.filter(
+          (week) => week.anxiety !== null || week.depression !== null || week.wellbeing !== null
+        );
+        setHasCompletedFiveWeeks(weeksWithData.length >= 5);
+
+        // Extract last 5 weeks data for ML model
+        if (weeksWithData.length >= 5) {
+          const lastFiveWeeks = weeksWithData.slice(-5);
+          const modelData = {
+            gad_w1: lastFiveWeeks[0].anxiety,
+            gad_w2: lastFiveWeeks[1].anxiety,
+            gad_w3: lastFiveWeeks[2].anxiety,
+            gad_w4: lastFiveWeeks[3].anxiety,
+            gad_w5: lastFiveWeeks[4].anxiety,
+            phq_w1: lastFiveWeeks[0].depression,
+            phq_w2: lastFiveWeeks[1].depression,
+            phq_w3: lastFiveWeeks[2].depression,
+            phq_w4: lastFiveWeeks[3].depression,
+            phq_w5: lastFiveWeeks[4].depression,
+            ghq_w1: lastFiveWeeks[0].wellbeing,
+            ghq_w2: lastFiveWeeks[1].wellbeing,
+            ghq_w3: lastFiveWeeks[2].wellbeing,
+            ghq_w4: lastFiveWeeks[3].wellbeing,
+            ghq_w5: lastFiveWeeks[4].wellbeing,
+          };
+          setFiveWeeksData(modelData);
+        }
       }
     } catch (err) {
       console.error("Error loading graph data:", err);
@@ -481,12 +552,54 @@ const Assessment = () => {
           </div>
 
           {/* Button */}
-          <button
-            onClick={() => alert("External help link coming soon.")}
-            className="mt-auto bg-blue-600 text-white py-2 rounded-lg text-sm font-medium hover:bg-blue-700 transition"
-          >
-            Get Help
-          </button>
+          {hasCompletedFiveWeeks && (
+            <div className="space-y-2">
+              <button
+                onClick={handlePredictTrend}
+                disabled={predicting}
+                className="w-full mt-auto bg-blue-600 text-white py-2 rounded-lg text-sm font-medium hover:bg-blue-700 transition disabled:bg-gray-400 disabled:cursor-not-allowed"
+              >
+                {predicting ? 'Analyzing Trends...' : 'Get Trend Prediction'}
+              </button>
+
+              {prediction && (
+                <div className="bg-green-50 border border-green-200 rounded-lg p-3">
+                  <div className="flex items-start gap-2">
+                    {prediction === 'improving' && (
+                      <>
+                        <TrendingUp className="w-5 h-5 text-green-600 flex-shrink-0 mt-0.5" />
+                        <div>
+                          <p className="text-sm font-semibold text-gray-900">Improving</p>
+                          <p className="text-sm text-gray-700 mt-1">Your mental health scores show a positive upward trend over the past 5 weeks, indicating improvement in overall wellbeing.</p>
+                        </div>
+                      </>
+                    )}
+                    {prediction === 'worsening' && (
+                      <>
+                        <TrendingDown className="w-5 h-5 text-orange-600 flex-shrink-0 mt-0.5" />
+                        <div>
+                          <p className="text-sm font-semibold text-gray-900">Worsening</p>
+                          <p className="text-sm text-gray-700 mt-1">Your mental health scores show a downward trend over the past 5 weeks. Consider reaching out to a mental health professional for support.</p>
+                        </div>
+                      </>
+                    )}
+                    {prediction === 'stable' && (
+                      <>
+                        <ArrowRight className="w-5 h-5 text-blue-600 flex-shrink-0 mt-0.5" />
+                        <div>
+                          <p className="text-sm font-semibold text-gray-900">Stable</p>
+                          <p className="text-sm text-gray-700 mt-1">Your mental health scores remain consistent over the past 5 weeks. Continue with your current wellness routine and monitor for any changes.</p>
+                        </div>
+                      </>
+                    )}
+                    {!['improving', 'worsening', 'stable'].includes(prediction) && (
+                      <p className="text-sm font-semibold text-green-900">{prediction}</p>
+                    )}
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
         </div>
       </div>
 
