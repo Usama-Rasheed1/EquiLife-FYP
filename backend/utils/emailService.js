@@ -1,10 +1,4 @@
 const nodemailer = require("nodemailer");
-
-/**
- * Initialize Nodemailer transporter
- * Uses SMTP_HOST, SMTP_PORT, SMTP_USER, SMTP_PASS from .env
- * Falls back to console logging if SMTP not configured
- */
 const getTransporter = () => {
   const { SMTP_HOST, SMTP_PORT, SMTP_USER, SMTP_PASS } = process.env;
 
@@ -18,7 +12,7 @@ const getTransporter = () => {
   return nodemailer.createTransport({
     host: SMTP_HOST,
     port: parseInt(SMTP_PORT, 10),
-    secure: parseInt(SMTP_PORT, 10) === 465, // Use TLS for 465, STARTTLS for 587
+    secure: parseInt(SMTP_PORT, 10) === 465,
     auth: SMTP_USER
       ? {
           user: SMTP_USER,
@@ -28,11 +22,6 @@ const getTransporter = () => {
   });
 };
 
-/**
- * Generate OTP email HTML template
- * @param {string} otp - 6-digit OTP code
- * @returns {string} HTML email template
- */
 const generateOTPTemplate = (otp) => {
   return `
     <!DOCTYPE html>
@@ -72,17 +61,11 @@ const generateOTPTemplate = (otp) => {
   `;
 };
 
-/**
- * Send OTP email to user
- * @param {string} to - Recipient email address
- * @param {string} otp - 6-digit OTP code
- * @returns {Promise<boolean>} Success status
- */
+
 const sendOTPEmail = async (to, otp) => {
   const transporter = getTransporter();
 
   if (!transporter) {
-    // Fallback: log to console if SMTP not configured
     console.log(
       `[EMAIL FALLBACK] OTP for ${to}: ${otp} (expires in 5 minutes)`
     );

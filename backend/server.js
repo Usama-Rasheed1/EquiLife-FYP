@@ -38,7 +38,7 @@ mongoose.connect(process.env.MONGO_URI)
         // find users who did not submit any assessment this week
         const now = new Date();
         const day = now.getDay();
-        const diffToMonday = (day + 6) % 7; // days since last Monday
+        const diffToMonday = (day + 6) % 7; 
         const monday = new Date(now);
         monday.setDate(now.getDate() - diffToMonday);
         monday.setHours(0,0,0,0);
